@@ -1,0 +1,19 @@
+{
+  "name": "DROP.ZONE",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {}
+  },
+  "forwardPorts": [3000, 8000],
+  "portsAttributes": {
+    "3000": {
+      "label": "DROP.ZONE",
+      "onAutoForward": "notify"
+    },
+    "8000": {
+      "label": "DROP.ZONE API",
+      "onAutoForward": "silent"
+    }
+  },
+  "remoteUser": "vscode"
+}

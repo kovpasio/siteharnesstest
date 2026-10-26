@@ -1,0 +1,97 @@
+name: dropzone
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-roulette}
+      POSTGRES_USER: ${POSTGRES_USER:-roulette}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roulette}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roulette} -d ${POSTGRES_DB:-roulette}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    image: dropzone-backend:local
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-roulette}:${POSTGRES_PASSWORD:-roulette}@db:5432/${POSTGRES_DB:-roulette}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-this-development-secret}
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:3000}
+      DEV_MODE: ${DEV_MODE:-true}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: ./backend
+    image: dropzone-backend:local
+    command: ["python", "-m", "app.bot"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-roulette}:${POSTGRES_PASSWORD:-roulette}@db:5432/${POSTGRES_DB:-roulette}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-this-development-secret}
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      WEBAPP_URL: ${WEBAPP_URL:-http://localhost:3000}
+      DEV_MODE: ${DEV_MODE:-true}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    image: dropzone-frontend:local
+    ports:
+      - "${APP_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

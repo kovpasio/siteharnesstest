@@ -1,0 +1,21 @@
+# dependencies / builds
+node_modules/
+.pnpm-store/
+.python-deps/
+.tmp/
+frontend/dist/
+frontend/.vite/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# env & local data
+.env
+*.local
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
