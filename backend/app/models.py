@@ -154,4 +154,6 @@ class Inventory(Base):
     sold_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="inventory")
-    domain: Mapped[Domain] = relationship(lazy="joined")
+    # domain_id is NOT NULL, so an INNER JOIN is both correct and safe for
+    # PostgreSQL `FOR UPDATE` queries.
+    domain: Mapped[Domain] = relationship(lazy="joined", innerjoin=True)

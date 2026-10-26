@@ -53,7 +53,9 @@ async def sell_domain(
     item = await db.scalar(
         select(Inventory)
         .where(Inventory.id == item_id, Inventory.user_id == user.id)
-        .with_for_update()
+        # PostgreSQL rejects FOR UPDATE on the nullable side of an eager
+        # outer join. Lock only the inventory row itself.
+        .with_for_update(of=Inventory)
         .execution_options(populate_existing=True)
     )
     if item is None:
