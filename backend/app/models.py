@@ -22,7 +22,6 @@ from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.config import settings
-from app.economy import sell_value
 
 
 class UTCDateTime(TypeDecorator):
@@ -97,10 +96,6 @@ class Domain(Base):
     @property
     def full_name(self) -> str:
         return f"{self.name}{self.zone}"
-
-    @property
-    def sell_price(self) -> int:
-        return sell_value(int(self.price), self.rarity)  # type: ignore[arg-type]
 
 
 class Spin(Base):

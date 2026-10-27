@@ -6,7 +6,6 @@ import pytest
 
 from app.domain_generator import generate_domains, load_words
 from app.economy import (
-    LIQUIDATION_RATES,
     MAX_DOMAIN_COUNT,
     PREMIUM_PRICES,
     RARITY_ORDER,
@@ -15,7 +14,6 @@ from app.economy import (
     calculate_price,
     length_factor,
     rarity_for_price,
-    sell_value,
     weight_for_price,
 )
 
@@ -49,9 +47,10 @@ def test_price_formula_and_rarity_thresholds():
     assert rarity_for_price(100000) == "mythic"
 
 
-def test_weight_is_inverse_log():
+def test_weight_is_power_curve():
     assert weight_for_price(10) > weight_for_price(1_000_000)
-    assert weight_for_price(1_000_000) == pytest.approx(1 / 6.0000043, rel=1e-5)
+    assert weight_for_price(1_000_000) == pytest.approx(1 / (1_000_000**0.6), rel=1e-9)
+    assert weight_for_price(1) == 1.0
 
 
 def test_upgrade_sectors_have_negative_ev():
@@ -59,18 +58,11 @@ def test_upgrade_sectors_have_negative_ev():
         assert sector / 100 * multiplier < 1
 
 
-def test_buyout_uses_rarity_discount():
-    assert sell_value(50, "common") == 50
-    assert sell_value(200, "rare") == 50
-    assert sell_value(5_000, "epic") == 200
-    assert sell_value(50_000, "legendary") == 250
-    assert sell_value(1_000_000, "mythic") == 1_000
-
-
 def test_all_roulette_costs_and_rarity_pools():
-    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [50, 200, 800, 3000, 20000]
-    assert SPIN_TYPES["mythic"]["rarities"] == ("mythic",)
+    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [50, 1_100, 20_000, 90_000]
+    assert "mythic" not in SPIN_TYPES
     assert SPIN_TYPES["normal"]["rarities"] == RARITY_ORDER
+    assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")
 
 
 def test_full_generator_has_100k_unique_domains_and_examples():
@@ -95,13 +87,12 @@ def test_full_generator_has_100k_unique_domains_and_examples():
 
 def test_every_roulette_has_negative_expected_value():
     domains = generate_domains(MAX_DOMAIN_COUNT)
-    assert all(0 < rate <= 1 for rate in LIQUIDATION_RATES.values())
     for key, roll in SPIN_TYPES.items():
         pool = [domain for domain in domains if domain.rarity in roll["rarities"]]
         total_weight = sum(domain.weight for domain in pool)
         expected = (
             sum(
-                sell_value(domain.price, domain.rarity) * domain.weight
+                domain.price * domain.weight
                 for domain in pool
             )
             / total_weight

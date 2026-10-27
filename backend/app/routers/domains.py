@@ -9,7 +9,6 @@ from app.database import get_db
 from app.economy import (
     SPIN_TYPES,
     ZONES,
-    liquidation_rates_payload,
     rarity_payload,
     spin_types_payload,
     upgrade_sectors_payload,
@@ -89,7 +88,6 @@ async def get_meta(db: AsyncSession = Depends(get_db)) -> MetaOut:
             "daily_cooldown_hours": settings.daily_cooldown_hours,
             "spin_cooldown_seconds": settings.spin_cooldown_seconds,
             "total_domains": total_domains,
-            "liquidation_rates": liquidation_rates_payload(),
             "upgrade_chance_ranges": {
                 "10": [10.0, 10.99],
                 "25": [25.0, 25.99],

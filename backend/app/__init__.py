@@ -1,1 +1,1 @@
-"""DROP.ZONE — virtual domain roulette backend."""
+"""Domain Drop — virtual domain roulette backend."""

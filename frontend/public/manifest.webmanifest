@@ -1,11 +1,11 @@
 {
-  "name": "DROP.ZONE — Domain Roulette",
-  "short_name": "DROP.ZONE",
+  "name": "Domain Drop — Virtual Domains",
+  "short_name": "Domain Drop",
   "description": "Виртуальная рулетка доменов в Telegram",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#14161A",
-  "theme_color": "#14161A",
+  "background_color": "#0F1622",
+  "theme_color": "#0F1622",
   "icons": [
     {
       "src": "/favicon.svg",

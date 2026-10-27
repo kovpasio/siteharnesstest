@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="DROP.ZONE API",
+    title="Domain Drop API",
     description="Telegram Mini App: виртуальная рулетка доменов.",
     version="1.0.0",
     lifespan=lifespan,
@@ -108,7 +108,7 @@ async def health() -> HealthOut:
 @app.get("/api", tags=["system"])
 async def api_root() -> dict:
     return {
-        "name": "DROP.ZONE API",
+        "name": "Domain Drop API",
         "docs": "/api/docs",
         "environment": settings.environment,
     }

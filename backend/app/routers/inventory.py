@@ -74,7 +74,7 @@ async def sell_bulk(
     now = datetime.now(timezone.utc)
     earned = 0
     for item in items:
-        price = int(item.domain.sell_price)
+        price = int(item.domain.price)
         item.sold_at = now
         item.sold_price = price
         earned += price
@@ -122,7 +122,7 @@ async def sell_domain(
             detail="Этот домен уже продан",
         )
 
-    price = int(item.domain.sell_price)
+    price = int(item.domain.price)
     now = datetime.now(timezone.utc)
     item.sold_at = now
     item.sold_price = price

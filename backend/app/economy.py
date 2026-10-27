@@ -40,16 +40,16 @@ PATTERN_FACTOR: dict[str, float] = {
 }
 
 RARITY_META: dict[Rarity, dict] = {
-    "common": {"title": "Common", "min_price": 1, "max_price": 99, "color": "#8A8F98"},
-    "rare": {"title": "Rare", "min_price": 100, "max_price": 999, "color": "#5B8FB9"},
-    "epic": {"title": "Epic", "min_price": 1_000, "max_price": 9_999, "color": "#8E6BB5"},
+    "common": {"title": "Common", "min_price": 1, "max_price": 99, "color": "#8C98A8"},
+    "rare": {"title": "Rare", "min_price": 100, "max_price": 999, "color": "#4D9BFF"},
+    "epic": {"title": "Epic", "min_price": 1_000, "max_price": 9_999, "color": "#A879F0"},
     "legendary": {
         "title": "Legendary",
         "min_price": 10_000,
         "max_price": 99_999,
-        "color": "#C9884A",
+        "color": "#F0A64B",
     },
-    "mythic": {"title": "Mythic", "min_price": 100_000, "max_price": None, "color": "#B5545B"},
+    "mythic": {"title": "Mythic", "min_price": 100_000, "max_price": None, "color": "#F05D6E"},
 }
 
 
@@ -77,37 +77,28 @@ SPIN_TYPES: dict[str, SpinType] = {
         "key": "uncommon_plus",
         "title": "Необычная+",
         "short_title": "Rare+",
-        "cost": 200,
+        "cost": 1_100,
         "rarities": ("rare", "epic", "legendary", "mythic"),
         "min_price": 100,
-        "description": "Rare и выше · 200 монет",
+        "description": "Rare и выше · 1 100 монет",
     },
     "rare_plus": {
         "key": "rare_plus",
         "title": "Редкая+",
         "short_title": "Epic+",
-        "cost": 800,
+        "cost": 20_000,
         "rarities": ("epic", "legendary", "mythic"),
         "min_price": 1_000,
-        "description": "Epic и выше · 800 монет",
+        "description": "Epic и выше · 20 000 монет",
     },
     "epic_plus": {
         "key": "epic_plus",
         "title": "Эпическая+",
         "short_title": "Legendary+",
-        "cost": 3_000,
+        "cost": 90_000,
         "rarities": ("legendary", "mythic"),
         "min_price": 10_000,
-        "description": "Legendary и Mythic · 3 000 монет",
-    },
-    "mythic": {
-        "key": "mythic",
-        "title": "Мифическая",
-        "short_title": "Mythic",
-        "cost": 20_000,
-        "rarities": ("mythic",),
-        "min_price": 100_000,
-        "description": "Только Mythic · 20 000 монет",
+        "description": "Legendary и Mythic · 90 000 монет",
     },
 }
 
@@ -118,17 +109,6 @@ UPGRADE_SECTORS: dict[int, float] = {
     25: 3.75,
     50: 1.9,
     75: 1.2,
-}
-
-# The market price is the collection valuation.  Instant sale to the house
-# pays a rarity-dependent buyout.  This is what keeps every roulette's EV
-# below its ticket price while preserving the individual domain prices.
-LIQUIDATION_RATES: dict[Rarity, float] = {
-    "common": 1.0,
-    "rare": 0.25,
-    "epic": 0.04,
-    "legendary": 0.005,
-    "mythic": 0.001,
 }
 
 MAX_DOMAIN_COUNT = 100_500
@@ -180,8 +160,13 @@ def calculate_price(name: str, zone: str, readability: str, jitter: float) -> in
 
 
 def weight_for_price(price: int) -> float:
-    """Higher prices are rarer, but only logarithmically so."""
-    return 1.0 / math.log10(max(1, price) + 10)
+    """Power curve: expensive names are dramatically rarer than cheap ones.
+
+    The previous inverse-log weight made high-rarity domains far too common.
+    This curve keeps the full sale price while making every roulette's
+    expected payout lower than its cost.
+    """
+    return 1.0 / math.pow(max(1, price), 0.6)
 
 
 def rarity_for_price(price: int) -> Rarity:
@@ -194,11 +179,6 @@ def rarity_for_price(price: int) -> Rarity:
     if price < 100_000:
         return "legendary"
     return "mythic"
-
-
-def sell_value(price: int, rarity: Rarity) -> int:
-    """Instant market buyout: a discounted, rarity-dependent coin payout."""
-    return max(1, int(round(price * LIQUIDATION_RATES[rarity])))
 
 
 def spin_types_payload() -> list[dict]:
@@ -214,10 +194,6 @@ def spin_types_payload() -> list[dict]:
         }
         for key, value in SPIN_TYPES.items()
     ]
-
-
-def liquidation_rates_payload() -> dict[str, float]:
-    return dict(LIQUIDATION_RATES)
 
 
 def upgrade_sectors_payload() -> list[dict]:

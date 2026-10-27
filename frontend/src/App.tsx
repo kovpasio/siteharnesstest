@@ -74,13 +74,13 @@ function Splash() {
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="relative flex flex-col items-center"
       >
-        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-accent/30 bg-accent/10">
-          <span className="font-display text-2xl font-bold tracking-tighter text-accent-soft">
-            D<span className="text-muted/60">/</span>Z
+        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-accent/40 bg-gradient-to-br from-accent/20 via-accent/10 to-teal/10 shadow-neon-lime">
+          <span className="font-display text-2xl font-bold tracking-tighter text-paper">
+            D<span className="bg-gradient-to-b from-accent-soft to-teal bg-clip-text text-transparent">↓</span>
           </span>
         </div>
         <div className="mt-5 font-display text-[13px] font-semibold tracking-[0.28em] text-paper">
-          DROP<span className="text-accent-soft">.ZONE</span>
+          DOMAIN <span className="text-accent-soft">DROP</span>
         </div>
         <div className="mt-2 text-[9px] uppercase tracking-[0.32em] text-muted/60">
           loading the drop engine

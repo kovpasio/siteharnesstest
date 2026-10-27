@@ -132,15 +132,15 @@ export function ProfilePage() {
             icon={Coins}
             label="Сумма"
             value={formatNumber(stats.collection_value)}
-            hint="оценка"
-            accent="#6C8EBF"
+            hint="цена"
+            accent="#4F9DFF"
           />
           <StatTile
             icon={Trophy}
             label="Место"
             value={stats.rank ? `#${stats.rank}` : '—'}
             hint={`из ${stats.total_players}`}
-            accent="#C9884A"
+            accent="#F2A54A"
           />
         </div>
       </motion.section>
@@ -180,13 +180,13 @@ export function ProfilePage() {
             </div>
             <p className="mt-0.5 text-[9px] text-muted">
               {dailyReady
-                ? 'Заберите +100 D — хватит на два обычных спина'
+                ? `Заберите +${formatNumber(stats.daily_bonus)} D на новые спины`
                 : `Следующий через ${countdown(stats.daily_available_at)}`}
             </p>
           </div>
           <div className="text-right">
             <div className={cn('font-display text-[15px] font-semibold', dailyReady ? 'text-rarity-legendary' : 'text-muted/60')}>
-              {claiming ? '…' : '+100'}
+              {claiming ? '…' : `+${formatNumber(stats.daily_bonus)}`}
             </div>
             <div className="mt-0.5 text-[8px] text-muted/60">каждые 24ч</div>
           </div>

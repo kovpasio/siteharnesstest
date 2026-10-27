@@ -128,7 +128,7 @@ export function RoulettePage() {
     hapticNotify(result.rarity === 'mythic' || result.rarity === 'legendary' ? 'success' : 'warning');
     if (result.auto_sold) {
       toast(
-        `Автопродано: ${result.domain.full_name} +${formatNumber(result.auto_sold_price ?? result.sell_price)} D`,
+        `Автопродано: ${result.domain.full_name} +${formatNumber(result.auto_sold_price ?? result.price)} D`,
         'success',
       );
     }
@@ -199,7 +199,7 @@ export function RoulettePage() {
         </div>
       </div>
 
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto axis-x px-1 pb-1">
+      <div className="grid grid-cols-4 gap-1.5">
         {(meta?.roll_types ?? []).map((roll) => {
           const active = roll.key === activeType;
           return (
@@ -213,17 +213,22 @@ export function RoulettePage() {
                 setActiveType(roll.key);
               }}
               className={cn(
-                'min-w-[112px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition',
+                'min-w-0 rounded-xl border px-2 py-2.5 text-left transition',
                 active
-                  ? 'border-accent/55 bg-accent/15'
-                  : 'border-white/[0.06] bg-ink-800/70 hover:border-white/[0.12]',
+                  ? 'border-accent/60 bg-gradient-to-b from-accent/20 to-accent/[0.06] shadow-neon-lime'
+                  : 'border-white/[0.07] bg-ink-800/70 hover:border-white/[0.14]',
                 spinning && 'opacity-60',
               )}
             >
-              <div className={cn('text-[10px] font-semibold', active ? 'text-paper' : 'text-muted')}>
+              <div
+                className={cn(
+                  'truncate text-[9px] font-semibold',
+                  active ? 'text-paper' : 'text-muted',
+                )}
+              >
                 {roll.title}
               </div>
-              <div className="mt-1 font-display text-[11px] font-semibold text-accent-soft">
+              <div className="mt-1 font-display text-[10px] font-semibold text-accent-soft">
                 {formatNumber(roll.cost)} D
               </div>
             </button>
@@ -357,16 +362,11 @@ export function RoulettePage() {
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-[8px] uppercase tracking-[0.1em] text-muted/60">
-                  {result.auto_sold ? 'получено' : 'оценка'}
+                  {result.auto_sold ? 'получено' : 'цена'}
                 </div>
                 <div className="font-display text-lg font-semibold text-paper">
-                  {formatNumber(result.auto_sold ? (result.auto_sold_price ?? result.sell_price) : result.price)} D
+                  {formatNumber(result.auto_sold ? (result.auto_sold_price ?? result.price) : result.price)} D
                 </div>
-                {!result.auto_sold && (
-                  <div className="mt-0.5 text-[8px] text-muted/60">
-                    выкуп {formatNumber(result.sell_price)} D
-                  </div>
-                )}
               </div>
             </div>
 
@@ -374,17 +374,10 @@ export function RoulettePage() {
               <span>{activeRoll?.title}</span>
               <span>·</span>
               <span>{timeAgo(result.created_at)}</span>
-              {result.auto_sold ? (
-                <>
-                  <span>·</span>
-                  <span className="text-accent-soft">баланс пополнен</span>
-                </>
-              ) : (
-                <>
-                  <span>·</span>
-                  <span>выкуп {formatNumber(result.sell_price)} D</span>
-                </>
-              )}
+              <span>·</span>
+              <span className={result.auto_sold ? 'text-accent-soft' : ''}>
+                {result.auto_sold ? 'баланс пополнен' : 'добавлен в инвентарь'}
+              </span>
             </div>
 
             <div className="mt-3.5 grid grid-cols-2 gap-2">
@@ -465,8 +458,7 @@ export function RoulettePage() {
       </div>
 
       <p className="rounded-xl border border-white/[0.04] bg-ink-800/40 px-3.5 py-3 text-[8px] leading-relaxed text-muted/70">
-        Цена домена — оценка коллекции. При мгновенной продаже начисляется выкуп по курсу
-        редкости: Common 100%, Rare 25%, Epic 4%, Legendary 0.5%, Mythic 0.1%.
+        Продажа домена зачисляет ровно его цену — без скрытых комиссий и пересчёта.
       </p>
     </div>
   );
@@ -482,7 +474,7 @@ function RibbonCard({ domain, highlighted }: { domain: Domain; highlighted: bool
       style={{
         width: ITEM_WIDTH,
         borderColor: highlighted ? meta.color : `${meta.color}40`,
-        background: `linear-gradient(155deg, ${meta.color}18 0%, #1E2128 54%, #1A1D23 100%)`,
+        background: `linear-gradient(155deg, ${meta.color}24 0%, #182334 54%, #141D2B 100%)`,
       }}
     >
       <div className="flex items-center justify-between">

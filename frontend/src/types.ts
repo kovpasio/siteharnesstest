@@ -1,11 +1,6 @@
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
 export type Zone = '.ru' | '.com' | '.io' | '.xyz';
-export type RollType =
-  | 'normal'
-  | 'uncommon_plus'
-  | 'rare_plus'
-  | 'epic_plus'
-  | 'mythic';
+export type RollType = 'normal' | 'uncommon_plus' | 'rare_plus' | 'epic_plus';
 
 export interface User {
   id: number;
@@ -26,7 +21,6 @@ export interface Domain {
   rarity: Rarity;
   weight: number;
   price: number;
-  sell_price: number;
   is_available: boolean;
 }
 
@@ -74,7 +68,6 @@ export interface SpinResult {
   domain: Domain;
   rarity: Rarity;
   price: number;
-  sell_price: number;
   balance: number;
   auto_sold: boolean;
   auto_sold_price: number | null;
@@ -187,7 +180,6 @@ export interface Meta {
     daily_cooldown_hours: number;
     spin_cooldown_seconds: number;
     total_domains: number;
-    liquidation_rates: Record<Rarity, number>;
     upgrade_chance_ranges: Record<string, [number, number]>;
   };
   total_domains: number;

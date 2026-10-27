@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.economy import SPIN_TYPES, sell_value
+from app.economy import SPIN_TYPES
 from app.models import Inventory, Spin, User
 from app.schemas import DomainOut, SpinIn, SpinOut
 from app.security import get_current_user
@@ -93,11 +93,11 @@ async def spin(
 
         autosell = await get_or_create_settings(db, locked_user.id)
         price = int(domain.price)
-        buyout = sell_value(price, domain.rarity)  # type: ignore[arg-type]
+        sale_price = price
         auto_sold = should_autosell(autosell, domain.rarity, price)
         locked_user.balance -= roll["cost"]
         if auto_sold:
-            locked_user.balance += buyout
+            locked_user.balance += sale_price
         locked_user.total_spins += 1
 
         server_seed = secrets.token_hex(32)
@@ -120,7 +120,7 @@ async def spin(
             pity_applied=False,
             price=price,
             auto_sold=auto_sold,
-            auto_sold_price=buyout if auto_sold else None,
+            auto_sold_price=sale_price if auto_sold else None,
             created_at=now,
         )
         db.add(spin_row)
@@ -147,10 +147,9 @@ async def spin(
             domain=DomainOut.model_validate(domain),
             rarity=domain.rarity,
             price=price,
-            sell_price=buyout,
             balance=locked_user.balance,
             auto_sold=auto_sold,
-            auto_sold_price=buyout if auto_sold else None,
+            auto_sold_price=sale_price if auto_sold else None,
             created_at=spin_row.created_at,
         )
     except HTTPException:

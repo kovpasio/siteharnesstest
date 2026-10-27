@@ -38,8 +38,8 @@ export function BottomNav() {
               className={cn(
                 'relative -mt-6 flex h-[54px] w-[54px] items-center justify-center rounded-2xl border transition active:scale-95',
                 location.pathname === '/roulette'
-                  ? 'border-accent-soft/60 bg-accent text-white'
-                  : 'border-accent/40 bg-accent/90 text-white',
+                  ? 'border-teal/60 bg-gradient-to-br from-accent to-teal text-[#07111D] shadow-neon-lime'
+                  : 'border-accent/50 bg-gradient-to-br from-accent/90 to-accent-deep text-white shadow-neon-lime',
               )}
             >
               <Dices size={24} strokeWidth={2} />

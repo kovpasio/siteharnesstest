@@ -11,7 +11,6 @@ RollTypeLiteral = Literal[
     "uncommon_plus",
     "rare_plus",
     "epic_plus",
-    "mythic",
 ]
 
 
@@ -38,7 +37,6 @@ class DomainOut(BaseModel):
     rarity: RarityLiteral
     weight: float
     price: int
-    sell_price: int
     is_available: bool
 
 
@@ -90,7 +88,6 @@ class SpinOut(BaseModel):
     domain: DomainOut
     rarity: str
     price: int
-    sell_price: int
     balance: int
     auto_sold: bool
     auto_sold_price: int | None

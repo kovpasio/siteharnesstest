@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { cn, initials } from '@/lib/utils';
 
 const GRADIENTS = [
-  'from-[#7FA6C9] via-[#6C8EBF] to-[#8E6BB5]',
-  'from-[#8EACCF] via-[#5B8FB9] to-[#4C6C97]',
-  'from-[#C9884A] via-[#B98960] to-[#8E6BB5]',
-  'from-[#B5545B] via-[#A98069] to-[#C9A45C]',
-  'from-[#9A8BB5] via-[#6C8EBF] to-[#7FA6C9]',
+  'from-[#5FB3FF] via-[#4F9DFF] to-[#B07CFF]',
+  'from-[#43D6C5] via-[#4D9BFF] to-[#2B6CCB]',
+  'from-[#F2A54A] via-[#F06473] to-[#B07CFF]',
+  'from-[#F06473] via-[#F2A54A] to-[#FFD27A]',
+  'from-[#B07CFF] via-[#4F9DFF] to-[#43D6C5]',
 ];
 
 function gradientFor(name: string): string {

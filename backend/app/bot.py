@@ -40,7 +40,7 @@ async def run_bot() -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎰 Открыть DROP.ZONE",
+                    text="🎰 Открыть Domain Drop",
                     web_app=WebAppInfo(url=settings.webapp_url),
                 )
             ]
@@ -52,10 +52,10 @@ async def run_bot() -> None:
         name = escape(message.from_user.first_name) if message.from_user else "пилот"
         await message.answer(
             f"Привет, <b>{name}</b>!\n\n"
-            "Это <b>DROP.ZONE</b> — виртуальная рулетка доменов.\n"
+            "Это <b>Domain Drop</b> — виртуальная рулетка доменов.\n"
             "Крути, собирай коллекцию и поднимайся в топ. "
             "Домены существуют только внутри приложения, реальных регистраций и денег нет.\n\n"
-            "Стартовый баланс — <b>1000 монет</b>. Один спин — <b>50</b>.",
+            "Стартовый баланс — <b>5000 монет</b>. Один спин — <b>50</b>.",
             reply_markup=keyboard,
             parse_mode="HTML",
         )
@@ -63,7 +63,7 @@ async def run_bot() -> None:
     @dispatcher.message(Command("help"))
     async def help_command(message: Message) -> None:
         await message.answer(
-            "Нажми «Открыть DROP.ZONE» ниже. Внутри: рулетка, инвентарь, "
+            "Нажми «Открыть Domain Drop» ниже. Внутри: рулетка, инвентарь, "
             "апгрейдер, настройки автопродажи и живая лента дропов.",
             reply_markup=keyboard,
         )
@@ -76,7 +76,7 @@ async def run_bot() -> None:
         try:
             await bot.set_my_commands(
                 [
-                    BotCommand(command="start", description="Открыть DROP.ZONE"),
+                    BotCommand(command="start", description="Открыть Domain Drop"),
                     BotCommand(command="help", description="Как играть"),
                 ]
             )

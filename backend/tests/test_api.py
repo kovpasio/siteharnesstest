@@ -145,14 +145,20 @@ async def test_full_game_flow(test_context, monkeypatch):
 
     me = await client.get("/api/me", headers=headers)
     assert me.status_code == 200
-    assert me.json()["user"]["balance"] == 1000
+    assert me.json()["user"]["balance"] == 5000
     assert me.json()["user"]["created_at"].endswith(("+00:00", "Z"))
 
     meta = await client.get("/api/meta")
     assert meta.status_code == 200
     meta_data = meta.json()
     assert meta_data["total_domains"] == 5
-    assert [item["cost"] for item in meta_data["roll_types"]] == [50, 200, 800, 3000, 20000]
+    assert [item["cost"] for item in meta_data["roll_types"]] == [50, 1_100, 20_000, 90_000]
+    assert [item["key"] for item in meta_data["roll_types"]] == [
+        "normal",
+        "uncommon_plus",
+        "rare_plus",
+        "epic_plus",
+    ]
 
     feed = await client.get("/api/domains/feed?roll_type=normal", headers=headers)
     assert feed.status_code == 200
@@ -166,7 +172,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     first = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
     assert first.status_code == 200, first.text
     first_data = first.json()
-    assert first_data["balance"] == 950
+    assert first_data["balance"] == 4950
     assert first_data["auto_sold"] is False
     assert "server_seed" not in first_data
     limited = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
@@ -191,8 +197,8 @@ async def test_full_game_flow(test_context, monkeypatch):
     assert auto_spin.status_code == 200, auto_spin.text
     auto_data = auto_spin.json()
     assert auto_data["auto_sold"] is True
-    assert auto_data["auto_sold_price"] == auto_data["sell_price"]
-    assert auto_data["balance"] == 950 - 50 + auto_data["auto_sold_price"]
+    assert auto_data["auto_sold_price"] == auto_data["price"]
+    assert auto_data["balance"] == 4950 - 50 + auto_data["auto_sold_price"]
 
     # Turn autosell off and collect three domains.
     response = await client.put(
@@ -227,7 +233,10 @@ async def test_full_game_flow(test_context, monkeypatch):
     assert sold.status_code == 200, sold.text
     sold_data = sold.json()
     assert sold_data["sold"] == 2
-    assert sold_data["earned"] > 0
+    selected_prices = {
+        item["id"]: item["domain"]["price"] for item in items if item["id"] in ids[:2]
+    }
+    assert sold_data["earned"] == sum(selected_prices.values())
 
     resell = await client.post(
         "/api/inventory/sell-bulk",
@@ -235,6 +244,16 @@ async def test_full_game_flow(test_context, monkeypatch):
         json={"ids": ids[:2]},
     )
     assert resell.status_code == 409
+
+    remaining = await client.get("/api/inventory", headers=headers)
+    remaining_items = remaining.json()
+    single = remaining_items[0]
+    single_sale = await client.post(
+        f"/api/inventory/{single['id']}/sell",
+        headers=headers,
+    )
+    assert single_sale.status_code == 200, single_sale.text
+    assert single_sale.json()["sold_price"] == single["domain"]["price"]
 
     # Deterministic successful upgrade.
     monkeypatch.setattr(upgrades, "rng", FakeRng())
@@ -269,6 +288,13 @@ async def test_auth_rejects_bad_init_data(test_context):
         json={"init_data": "auth_date=1&hash=deadbeef&user=%7B%7D"},
     )
     assert response.status_code in {401, 503}
+
+
+async def test_mythic_roulette_is_gone(test_context):
+    client, _Session, _fake = test_context
+    _payload, headers = await _auth(client)
+    response = await client.post("/api/spin", headers=headers, json={"roll_type": "mythic"})
+    assert response.status_code == 422
 
 
 async def test_settings_validation(test_context):

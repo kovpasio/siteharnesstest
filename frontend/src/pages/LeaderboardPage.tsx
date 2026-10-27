@@ -145,8 +145,8 @@ function PodiumCard({
 }) {
   const config = [
     {
-      ring: 'border-[#ffd166]/45 bg-gradient-to-b from-[#ffd166]/15 to-white/[0.02]',
-      badge: 'bg-[#ffd166] text-[#2a1a00]',
+      ring: 'border-[#F2A54A]/50 bg-gradient-to-b from-[#F2A54A]/18 to-white/[0.02]',
+      badge: 'bg-[#F2A54A] text-[#2a1a00]',
       size: 78,
       label: '1',
       icon: Crown,
@@ -161,8 +161,8 @@ function PodiumCard({
       height: 'pt-4',
     },
     {
-      ring: 'border-[#d4925f]/35 bg-gradient-to-b from-[#d4925f]/10 to-white/[0.02]',
-      badge: 'bg-[#d4925f] text-[#28150a]',
+      ring: 'border-[#D0895A]/40 bg-gradient-to-b from-[#D0895A]/12 to-white/[0.02]',
+      badge: 'bg-[#D0895A] text-[#28150a]',
       size: 60,
       label: '3',
       icon: Medal,
@@ -174,7 +174,7 @@ function PodiumCard({
   return (
     <div
       className={cn(
-        'relative flex flex-col items-center overflow-hidden rounded-[22px] border px-1.5 pb-4 text-center',
+        'relative flex flex-col items-center overflow-hidden rounded-2xl border px-1.5 pb-4 text-center',
         config.ring,
         config.height,
         isMe && 'ring-1 ring-neon-lime/60',
@@ -189,7 +189,7 @@ function PodiumCard({
         <motion.div
           animate={{ y: [0, -3, 0] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute top-2 text-[#ffd166]"
+          className="absolute top-2 text-[#F2A54A]"
         >
           <Icon size={14} />
         </motion.div>
@@ -200,7 +200,7 @@ function PodiumCard({
       </div>
       <div className="w-full truncate text-[8px] text-white/30">@{entry.username}</div>
       <div className="mt-2 flex items-center gap-1">
-        <span className={cn('font-display font-bold', place === 0 ? 'text-base text-[#ffd166]' : 'text-[12px] text-white/70')}>
+        <span className={cn('font-display font-bold', place === 0 ? 'text-base text-[#F2A54A]' : 'text-[12px] text-white/70')}>
           {formatNumber(entry.score)}
         </span>
         <span className="text-[8px] text-white/25">D</span>
@@ -224,11 +224,11 @@ function RankRow({ entry, highlight = false }: { entry: LeaderboardEntry; highli
         className={cn(
           'w-6 text-center font-display text-[12px] font-bold tabular-nums',
           entry.rank === 1
-            ? 'text-[#ffd166]'
+            ? 'text-[#F2A54A]'
             : entry.rank === 2
               ? 'text-white/70'
               : entry.rank === 3
-                ? 'text-[#d4925f]'
+                ? 'text-[#D0895A]'
                 : 'text-white/25',
         )}
       >

@@ -32,7 +32,7 @@ export function TopBar() {
               )}
             >
               <Coin size={16} />
-              <span className="font-display text-[13px] font-bold tabular-nums text-[#C9D8EA]">
+              <span className="font-display text-[13px] font-bold tabular-nums text-[#E6F1FF]">
                 {me ? formatNumber(me.user.balance) : '—'}
               </span>
             </Link>

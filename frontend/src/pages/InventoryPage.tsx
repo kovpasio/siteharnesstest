@@ -77,15 +77,11 @@ export function InventoryPage() {
     () => (items ?? []).reduce((sum, item) => sum + item.domain.price, 0),
     [items],
   );
-  const totalBuyout = useMemo(
-    () => (items ?? []).reduce((sum, item) => sum + item.domain.sell_price, 0),
-    [items],
-  );
   const selectedItems = useMemo(
     () => (items ?? []).filter((item) => selectedIds.has(item.id)),
     [items, selectedIds],
   );
-  const selectedValue = selectedItems.reduce((sum, item) => sum + item.domain.sell_price, 0);
+  const selectedValue = selectedItems.reduce((sum, item) => sum + item.domain.price, 0);
 
   function toggle(id: number) {
     hapticImpact('light');
@@ -197,7 +193,7 @@ export function InventoryPage() {
 
       <div className="mb-4 grid grid-cols-3 gap-2">
         <div className="relative col-span-2 overflow-hidden rounded-xl border border-white/[0.06] bg-ink-800 p-3.5">
-          <div className="label mb-1.5">Оценка коллекции</div>
+          <div className="label mb-1.5">Стоимость коллекции</div>
           <div className="flex items-center gap-2">
             <Wallet size={15} className="text-accent-soft" />
             <span className="font-display text-xl font-semibold tracking-tight text-paper">
@@ -205,9 +201,7 @@ export function InventoryPage() {
             </span>
             <span className="text-[9px] font-semibold text-muted">D</span>
           </div>
-          <div className="mt-1 text-[8px] text-muted/60">
-            выкуп сейчас ≈ {formatNumber(totalBuyout)} D
-          </div>
+          <div className="mt-1 text-[8px] text-muted/60">полная сумма при продаже</div>
         </div>
         <div className="rounded-xl border border-white/[0.06] bg-ink-800 p-3.5">
           <div className="label mb-1.5">Домены</div>
@@ -386,8 +380,7 @@ export function InventoryPage() {
                 </span>
               </div>
               <div className="mt-1.5 text-[10px] text-muted">
-                {ZONE_META[sellOne.domain.zone].label} · {RARITY[sellOne.domain.rarity].label} ·
-                оценка {formatNumber(sellOne.domain.price)} D
+                {ZONE_META[sellOne.domain.zone].label} · {RARITY[sellOne.domain.rarity].label}
               </div>
             </div>
 
@@ -397,7 +390,7 @@ export function InventoryPage() {
                 Вы получите
               </div>
               <div className="font-display text-lg font-semibold text-paper">
-                +{formatNumber(sellOne.domain.sell_price)} D
+                +{formatNumber(sellOne.domain.price)} D
               </div>
             </div>
 
@@ -544,13 +537,8 @@ function InventoryCard({
       </div>
 
       <div className="mt-2.5 flex items-center justify-between border-t border-white/[0.05] pt-2">
-        <span className="flex flex-col">
-          <span className="font-display text-[10px] font-semibold text-paper/80">
-            {formatNumber(item.domain.price)} D
-          </span>
-          <span className="text-[7px] text-muted/60">
-            выкуп {formatNumber(item.domain.sell_price)} D
-          </span>
+        <span className="font-display text-[10px] font-semibold text-paper/80">
+          {formatNumber(item.domain.price)} D
         </span>
         <button
           type="button"

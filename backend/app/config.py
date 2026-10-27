@@ -11,7 +11,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "DROP.ZONE"
+    app_name: str = "Domain Drop"
     environment: str = "development"
     database_url: str = "postgresql+asyncpg://roulette:roulette@localhost:5432/roulette"
     redis_url: str = "redis://localhost:6379/0"
@@ -26,11 +26,9 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
 
     # Game economy. The API exposes these numbers through /meta.
-    start_balance: int = 1000
-    spin_cost: int = 50
-    daily_bonus: int = 100
+    start_balance: int = 5_000
+    daily_bonus: int = 500
     daily_cooldown_hours: int = 24
-    pity_threshold: int = 50
     spin_cooldown_seconds: int = 2
 
     @property

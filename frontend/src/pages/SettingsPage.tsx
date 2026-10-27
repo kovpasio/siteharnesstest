@@ -95,7 +95,7 @@ export function SettingsPage() {
       <PageTitle
         eyebrow="settings"
         title="Автопродажа"
-        description="Домены, подходящие под правила, продаются сразу после спина. На баланс зачисляется мгновенный выкуп, в инвентарь домен не попадает."
+        description="Домены, подходящие под правила, продаются сразу после спина. На баланс зачисляется полная цена, в инвентарь домен не попадает."
       />
 
       {loading ? (
@@ -155,8 +155,8 @@ export function SettingsPage() {
               <div>
                 <div className="text-[11px] font-semibold text-paper">Продавать всё дешевле</div>
                 <div className="mt-0.5 text-[9px] leading-relaxed text-muted">
-                  Правило по оценке домена. Если рыночная цена ниже указанной — домен продаётся
-                  сразу по курсу выкупа.
+                  Если цена домена ниже указанной — он сразу продаётся, и на баланс приходит
+                  ровно эта сумма.
                 </div>
               </div>
               <Toggle enabled={belowEnabled} onChange={() => setBelowEnabled((value) => !value)} />
@@ -178,10 +178,10 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-xl border border-accent/15 bg-accent/[0.04] px-3.5 py-3 text-[9px] leading-relaxed text-muted">
+          <div className="flex items-start gap-2 rounded-xl border border-accent/20 bg-accent/[0.06] px-3.5 py-3 text-[9px] leading-relaxed text-muted">
             <Sparkles size={13} className="mt-0.5 shrink-0 text-accent-soft" />
-            Курс выкупа: Common 100%, Rare 25%, Epic 4%, Legendary 0.5%, Mythic 0.1%.
-            Редкость Mythic можно отключить, чтобы сохранить дорогой домен в коллекции.
+            Продажа всегда зачисляет полную цену. Редкость Mythic можно отключить, чтобы
+            сохранить дорогой домен в коллекции.
           </div>
 
           <button

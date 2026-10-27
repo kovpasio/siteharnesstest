@@ -8,21 +8,21 @@ const LINKS = [
     label: 'Рейтинг',
     description: 'Топ-20 коллекций по сумме цен',
     icon: Trophy,
-    color: '#C9884A',
+    color: '#F2A54A',
   },
   {
     to: '/drops',
     label: 'Лента дропов',
     description: 'Последние 20 выпадений в реальном времени',
     icon: Radio,
-    color: '#5B8FB9',
+    color: '#4D9BFF',
   },
   {
     to: '/settings',
     label: 'Настройки',
     description: 'Автопродажа по редкости и цене',
     icon: Settings2,
-    color: '#8E6BB5',
+    color: '#B07CFF',
   },
 ];
 
@@ -63,7 +63,7 @@ export function MorePage() {
           О приложении
         </div>
         <p className="text-[9px] leading-relaxed text-muted/70">
-          DROP.ZONE — виртуальная рулетка доменов. Все имена и цены существуют только внутри
+          Domain Drop — виртуальная рулетка доменов. Все имена и цены существуют только внутри
           приложения. Здесь нет реальных регистраций, денег и ставок. Виртуальные монеты нельзя
           купить или вывести.
         </p>
