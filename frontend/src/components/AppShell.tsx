@@ -7,7 +7,6 @@ import { TopBar } from '@/components/TopBar';
 
 export function AppShell() {
   const location = useLocation();
-  const hideNav = location.pathname === '/verify';
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -18,9 +17,7 @@ export function AppShell() {
       <Backdrop />
       <div className="relative z-10">
         <TopBar />
-        <main
-          className={`mx-auto w-full max-w-md px-4 pt-5 ${hideNav ? 'pb-10' : 'pb-32'}`}
-        >
+        <main className="mx-auto w-full max-w-md px-4 pb-32 pt-5">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
@@ -34,7 +31,7 @@ export function AppShell() {
           </AnimatePresence>
         </main>
       </div>
-      {!hideNav && <BottomNav />}
+      <BottomNav />
     </div>
   );
 }

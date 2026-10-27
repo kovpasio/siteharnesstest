@@ -12,7 +12,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="border-b border-white/[0.06] bg-ink-950/80 pt-[env(safe-area-inset-top)] backdrop-blur-2xl">
+      <div className="border-b border-white/[0.06] bg-ink-950/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-[62px] w-full max-w-md items-center justify-between px-4">
           <Logo />
           <div className="flex items-center gap-2">
@@ -20,19 +20,19 @@ export function TopBar() {
               type="button"
               onClick={toggle}
               aria-label={enabled ? 'Выключить звук' : 'Включить звук'}
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/45 transition hover:text-white active:scale-95"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-muted transition hover:text-paper active:scale-95"
             >
               {enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             </button>
             <Link
               to="/"
               className={cn(
-                'flex h-9 items-center gap-1.5 rounded-xl border border-neon-lime/20 bg-neon-lime/[0.07] px-2.5',
-                'transition hover:border-neon-lime/40 active:scale-95',
+                'flex h-9 items-center gap-1.5 rounded-xl border border-accent/25 bg-accent/[0.08] px-2.5',
+                'transition hover:border-accent/50 active:scale-95',
               )}
             >
               <Coin size={16} />
-              <span className="font-display text-[13px] font-bold tabular-nums text-[#dfff9e]">
+              <span className="font-display text-[13px] font-bold tabular-nums text-[#C9D8EA]">
                 {me ? formatNumber(me.user.balance) : '—'}
               </span>
             </Link>

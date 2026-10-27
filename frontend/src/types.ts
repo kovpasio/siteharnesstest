@@ -1,5 +1,11 @@
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary' | 'mythic';
-export type Zone = '.ru' | '.com' | '.io';
+export type Zone = '.ru' | '.com' | '.io' | '.xyz';
+export type RollType =
+  | 'normal'
+  | 'uncommon_plus'
+  | 'rare_plus'
+  | 'epic_plus'
+  | 'mythic';
 
 export interface User {
   id: number;
@@ -8,7 +14,6 @@ export interface User {
   display_name: string;
   avatar_url: string | null;
   balance: number;
-  pity_counter: number;
   total_spins: number;
   created_at: string;
 }
@@ -21,6 +26,8 @@ export interface Domain {
   rarity: Rarity;
   weight: number;
   price: number;
+  sell_price: number;
+  is_available: boolean;
 }
 
 export interface MeStats {
@@ -29,9 +36,6 @@ export interface MeStats {
   collection_by_rarity: Record<Rarity, number>;
   rank: number | null;
   total_players: number;
-  pity_counter: number;
-  pity_threshold: number;
-  spin_cost: number;
   daily_bonus: number;
   daily_available_at: string | null;
   can_daily_bonus: boolean;
@@ -48,31 +52,32 @@ export interface AuthResponse {
   user: User;
 }
 
-export interface Commitment {
-  commitment_id: number;
-  server_seed_hash: string;
-  client_seed: string;
-  nonce: number;
-  created_at: string;
+export interface RollTypeMeta {
+  key: RollType;
+  title: string;
+  short_title: string;
+  cost: number;
+  rarities: Rarity[];
+  min_price: number;
+  description: string;
+}
+
+export interface UpgradeSector {
+  sector: 10 | 25 | 50 | 75;
+  multiplier: number;
+  ev: number;
 }
 
 export interface SpinResult {
   id: number;
+  roll_type: RollType;
   domain: Domain;
   rarity: Rarity;
-  base_rarity: Rarity;
   price: number;
-  server_seed: string;
-  server_seed_hash: string;
-  client_seed: string;
-  nonce: number;
-  rarity_roll: number;
-  domain_roll: number;
-  domain_index: number;
-  bucket_size: number;
-  pity_applied: boolean;
-  pity_counter: number;
+  sell_price: number;
   balance: number;
+  auto_sold: boolean;
+  auto_sold_price: number | null;
   created_at: string;
 }
 
@@ -89,6 +94,36 @@ export interface SellResult {
   sold_price: number;
   balance: number;
   domain: Domain;
+}
+
+export interface BulkSellResult {
+  sold: number;
+  earned: number;
+  balance: number;
+  ids: number[];
+}
+
+export interface AutosellSettings {
+  autosell_common: boolean;
+  autosell_rare: boolean;
+  autosell_epic: boolean;
+  autosell_legendary: boolean;
+  autosell_mythic: boolean;
+  autosell_below_price: number | null;
+}
+
+export interface UpgradeResult {
+  id: number;
+  success: boolean;
+  chance: number;
+  multiplier: number;
+  spent_value: number;
+  target_value: number;
+  from_domain_ids: number[];
+  burned_ids: number[];
+  domain: Domain | null;
+  balance: number;
+  created_at: string;
 }
 
 export interface LeaderboardEntry {
@@ -117,7 +152,8 @@ export interface Drop {
   domain: Domain;
   rarity: Rarity;
   price: number;
-  pity_applied: boolean;
+  roll_type: RollType;
+  auto_sold: boolean;
   created_at: string;
 }
 
@@ -133,54 +169,28 @@ export interface DailyBonusResponse {
   user: User;
 }
 
-export interface VerifyResult {
-  spin_id: number | null;
-  username: string | null;
-  domain: Domain;
-  rarity: Rarity;
-  base_rarity: Rarity;
-  server_seed: string;
-  server_seed_hash: string;
-  hash_valid: boolean;
-  client_seed: string;
-  nonce: number;
-  rarity_roll: number;
-  domain_roll: number;
-  domain_index: number;
-  bucket_size: number;
-  pity_applied: boolean;
-  computed_rarity: Rarity;
-  computed_domain: Domain;
-  verified: boolean;
-  created_at: string | null;
-  formula: string;
-}
-
 export interface Meta {
   app_name: string;
   zones: Zone[];
   rarities: Array<{
     key: Rarity;
     title: string;
-    weight: number;
-    price: number;
-    length: string;
+    min_price: number;
+    max_price: number | null;
     color: string;
-    glow: string;
-    probability: number;
   }>;
+  roll_types: RollTypeMeta[];
+  upgrade_sectors: UpgradeSector[];
   economy: {
     start_balance: number;
-    spin_cost: number;
     daily_bonus: number;
     daily_cooldown_hours: number;
-    expected_value: number;
-    house_edge: number;
-    pity_threshold: number;
-    sell_prices: Record<Rarity, number>;
+    spin_cooldown_seconds: number;
+    total_domains: number;
+    liquidation_rates: Record<Rarity, number>;
+    upgrade_chance_ranges: Record<string, [number, number]>;
   };
-  total_weight: number;
-  provably_fair: Record<string, string>;
+  total_domains: number;
 }
 
 export interface TelegramWebAppUser {

@@ -4,8 +4,8 @@
   "description": "Виртуальная рулетка доменов в Telegram",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#05060a",
-  "theme_color": "#05060a",
+  "background_color": "#14161A",
+  "theme_color": "#14161A",
   "icons": [
     {
       "src": "/favicon.svg",

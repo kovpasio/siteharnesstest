@@ -29,7 +29,8 @@ def spin_to_drop(spin: Spin) -> dict:
         "domain": domain,
         "rarity": spin.rarity,
         "price": spin.price,
-        "pity_applied": spin.pity_applied,
+        "roll_type": spin.roll_type,
+        "auto_sold": spin.auto_sold,
         "created_at": created_at.isoformat(),
     }
 

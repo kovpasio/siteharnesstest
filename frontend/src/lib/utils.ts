@@ -9,6 +9,7 @@ export function formatNumber(value: number): string {
 }
 
 export function formatCompact(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1).replace('.0', '')}B`;
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.0', '')}M`;
   if (value >= 10_000) return `${Math.round(value / 1000)}K`;
   return formatNumber(value);
@@ -64,60 +65,61 @@ export const RARITY: Record<
 > = {
   common: {
     label: 'Common',
-    color: '#8b95a7',
-    glow: 'rgba(139,149,167,.45)',
-    gradient: 'from-[#8b95a7]/20 via-[#8b95a7]/5 to-transparent',
-    soft: 'bg-[#8b95a7]/10',
-    border: 'border-[#8b95a7]/30',
-    text: 'text-[#aab3c2]',
+    color: '#8A8F98',
+    glow: 'rgba(138,143,152,.22)',
+    gradient: 'from-[#8A8F98]/15 via-[#8A8F98]/4 to-transparent',
+    soft: 'bg-[#8A8F98]/10',
+    border: 'border-[#8A8F98]/25',
+    text: 'text-[#B2B6BE]',
     icon: '◇',
   },
   rare: {
     label: 'Rare',
-    color: '#3b82f6',
-    glow: 'rgba(59,130,246,.55)',
-    gradient: 'from-[#3b82f6]/25 via-[#3b82f6]/5 to-transparent',
-    soft: 'bg-[#3b82f6]/10',
-    border: 'border-[#3b82f6]/35',
-    text: 'text-[#6ca6ff]',
+    color: '#5B8FB9',
+    glow: 'rgba(91,143,185,.25)',
+    gradient: 'from-[#5B8FB9]/18 via-[#5B8FB9]/4 to-transparent',
+    soft: 'bg-[#5B8FB9]/10',
+    border: 'border-[#5B8FB9]/30',
+    text: 'text-[#82A9CB]',
     icon: '◈',
   },
   epic: {
     label: 'Epic',
-    color: '#a855f7',
-    glow: 'rgba(168,85,247,.6)',
-    gradient: 'from-[#a855f7]/25 via-[#a855f7]/5 to-transparent',
-    soft: 'bg-[#a855f7]/10',
-    border: 'border-[#a855f7]/40',
-    text: 'text-[#c084fc]',
+    color: '#8E6BB5',
+    glow: 'rgba(142,107,181,.26)',
+    gradient: 'from-[#8E6BB5]/18 via-[#8E6BB5]/4 to-transparent',
+    soft: 'bg-[#8E6BB5]/10',
+    border: 'border-[#8E6BB5]/32',
+    text: 'text-[#AD90CC]',
     icon: '✦',
   },
   legendary: {
     label: 'Legendary',
-    color: '#ff8a1f',
-    glow: 'rgba(255,138,31,.7)',
-    gradient: 'from-[#ff8a1f]/30 via-[#ff8a1f]/8 to-transparent',
-    soft: 'bg-[#ff8a1f]/10',
-    border: 'border-[#ff8a1f]/45',
-    text: 'text-[#ffb15c]',
+    color: '#C9884A',
+    glow: 'rgba(201,136,74,.28)',
+    gradient: 'from-[#C9884A]/18 via-[#C9884A]/4 to-transparent',
+    soft: 'bg-[#C9884A]/10',
+    border: 'border-[#C9884A]/35',
+    text: 'text-[#D9A26C]',
     icon: '★',
   },
   mythic: {
     label: 'Mythic',
-    color: '#ff3d55',
-    glow: 'rgba(255,61,85,.8)',
-    gradient: 'from-[#ff3d55]/30 via-[#ff3d55]/10 to-transparent',
-    soft: 'bg-[#ff3d55]/10',
-    border: 'border-[#ff3d55]/50',
-    text: 'text-[#ff7182]',
+    color: '#B5545B',
+    glow: 'rgba(181,84,91,.3)',
+    gradient: 'from-[#B5545B]/18 via-[#B5545B]/5 to-transparent',
+    soft: 'bg-[#B5545B]/10',
+    border: 'border-[#B5545B]/38',
+    text: 'text-[#CE7B81]',
     icon: '☄',
   },
 };
 
 export const ZONE_META: Record<string, { label: string; className: string }> = {
-  '.ru': { label: 'RU', className: 'text-[#7dd3fc] bg-[#0ea5e9]/10 border-[#0ea5e9]/20' },
-  '.com': { label: 'COM', className: 'text-[#c4b5fd] bg-[#8b5cf6]/10 border-[#8b5cf6]/20' },
-  '.io': { label: 'IO', className: 'text-[#bef264] bg-[#84cc16]/10 border-[#84cc16]/20' },
+  '.ru': { label: 'RU', className: 'text-[#89A9C7] bg-[#5B8FB9]/10 border-[#5B8FB9]/20' },
+  '.com': { label: 'COM', className: 'text-[#A88CC7] bg-[#8E6BB5]/10 border-[#8E6BB5]/20' },
+  '.io': { label: 'IO', className: 'text-[#91B4A0] bg-[#6F9C82]/10 border-[#6F9C82]/20' },
+  '.xyz': { label: 'XYZ', className: 'text-[#C2A17B] bg-[#A6805B]/10 border-[#A6805B]/20' },
 };
 
 export function getTelegram() {

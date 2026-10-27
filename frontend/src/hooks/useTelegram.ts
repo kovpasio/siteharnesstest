@@ -9,8 +9,8 @@ export function useTelegram() {
     tg.ready();
     tg.expand();
     try {
-      tg.setHeaderColor('#05060a');
-      tg.setBackgroundColor('#05060a');
+      tg.setHeaderColor('#14161A');
+      tg.setBackgroundColor('#14161A');
     } catch {
       // older Telegram clients do not implement these methods
     }

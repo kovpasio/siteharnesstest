@@ -1,30 +1,32 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
+    JSON,
+    Numeric,
     String,
     TypeDecorator,
     UniqueConstraint,
     func,
 )
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.config import settings
+from app.economy import sell_value
 
 
 class UTCDateTime(TypeDecorator):
-    """Always expose timezone-aware UTC datetimes.
-
-    PostgreSQL TIMESTAMPTZ already does this.  SQLite (used by the test/demo
-    suite) stores naive values, which would otherwise be parsed by JavaScript
-    as local time and shown with a timezone offset.
-    """
+    """Always expose timezone-aware UTC datetimes."""
 
     impl = DateTime(timezone=True)
     cache_ok = True
@@ -52,7 +54,7 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False, default="Pilot")
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    balance: Mapped[int] = mapped_column(Integer, nullable=False, default=settings.start_balance)
+    balance: Mapped[int] = mapped_column(BigInteger, nullable=False, default=settings.start_balance)
     pity_counter: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_spins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_daily_bonus: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
@@ -67,6 +69,7 @@ class User(Base):
     )
 
     inventory: Mapped[list[Inventory]] = relationship(back_populates="user")
+    settings: Mapped[UserSettings | None] = relationship(back_populates="user", uselist=False)
 
 
 class Domain(Base):
@@ -74,14 +77,19 @@ class Domain(Base):
     __table_args__ = (
         UniqueConstraint("name", "zone", name="uq_domains_name_zone"),
         Index("ix_domains_rarity_id", "rarity", "id"),
+        Index("ix_domains_available_rarity", "is_available", "rarity"),
+        Index("ix_domains_price", "price"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     zone: Mapped[str] = mapped_column(String(8), nullable=False)
     rarity: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    weight: Mapped[int] = mapped_column(Integer, nullable=False)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False)
+    price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    is_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now()
     )
@@ -90,21 +98,9 @@ class Domain(Base):
     def full_name(self) -> str:
         return f"{self.name}{self.zone}"
 
-
-class SpinCommitment(Base):
-    __tablename__ = "spin_commitments"
-    __table_args__ = (Index("ix_spin_commitments_user_nonce", "user_id", "nonce"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    server_seed: Mapped[str] = mapped_column(String(128), nullable=False)
-    server_seed_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    client_seed: Mapped[str] = mapped_column(String(64), nullable=False)
-    nonce: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(), nullable=False, server_default=func.now()
-    )
-    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    @property
+    def sell_price(self) -> int:
+        return sell_value(int(self.price), self.rarity)  # type: ignore[arg-type]
 
 
 class Spin(Base):
@@ -112,11 +108,10 @@ class Spin(Base):
     __table_args__ = (Index("ix_spins_user_created", "user_id", "created_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    commitment_id: Mapped[int | None] = mapped_column(
-        ForeignKey("spin_commitments.id", ondelete="SET NULL"), nullable=True
-    )
+    commitment_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     domain_id: Mapped[int] = mapped_column(ForeignKey("domains.id"), nullable=False)
+    roll_type: Mapped[str] = mapped_column(String(32), nullable=False, default="normal")
     rarity: Mapped[str] = mapped_column(String(16), nullable=False)
     base_rarity: Mapped[str] = mapped_column(String(16), nullable=False)
     server_seed: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -127,13 +122,15 @@ class Spin(Base):
     domain_roll: Mapped[int] = mapped_column(Integer, nullable=False)
     domain_index: Mapped[int] = mapped_column(Integer, nullable=False)
     bucket_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    pity_applied: Mapped[bool] = mapped_column(nullable=False, default=False)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    pity_applied: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    auto_sold: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    auto_sold_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now()
     )
 
-    domain: Mapped[Domain] = relationship(lazy="joined")
+    domain: Mapped[Domain] = relationship(lazy="joined", innerjoin=True)
     user: Mapped[User] = relationship(lazy="joined")
 
 
@@ -151,9 +148,46 @@ class Inventory(Base):
         UTCDateTime(), nullable=False, server_default=func.now()
     )
     sold_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
-    sold_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sold_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="inventory")
-    # domain_id is NOT NULL, so an INNER JOIN is both correct and safe for
-    # PostgreSQL `FOR UPDATE` queries.
     domain: Mapped[Domain] = relationship(lazy="joined", innerjoin=True)
+
+
+class UserSettings(Base):
+    __tablename__ = "user_settings"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    autosell_common: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    autosell_rare: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    autosell_epic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    autosell_legendary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    autosell_mythic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    autosell_below_price: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="settings")
+
+
+_ID_ARRAY = PG_ARRAY(BigInteger).with_variant(JSON, "sqlite")
+
+
+class Upgrade(Base):
+    __tablename__ = "upgrades"
+    __table_args__ = (Index("ix_upgrades_user_created", "user_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    from_domain_ids: Mapped[list[int]] = mapped_column(_ID_ARRAY, nullable=False)
+    to_domain_id: Mapped[int | None] = mapped_column(
+        ForeignKey("domains.id", ondelete="SET NULL"), nullable=True
+    )
+    chance: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    multiplier: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), nullable=False, server_default=func.now()
+    )
+
+    to_domain: Mapped[Domain | None] = relationship(lazy="joined")

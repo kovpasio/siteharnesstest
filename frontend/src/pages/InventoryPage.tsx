@@ -4,12 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   BadgeDollarSign,
+  Check,
   CircleSlash2,
   Filter,
   PackageOpen,
   Sparkles,
   Tag,
   Wallet,
+  X,
 } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +42,9 @@ export function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[] | null>(null);
   const [zone, setZone] = useState<ZoneFilter>('all');
   const [rarity, setRarity] = useState<RarityFilter>('all');
-  const [selected, setSelected] = useState<InventoryItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [sellOne, setSellOne] = useState<InventoryItem | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [selling, setSelling] = useState(false);
 
   useEffect(() => {
@@ -73,29 +77,99 @@ export function InventoryPage() {
     () => (items ?? []).reduce((sum, item) => sum + item.domain.price, 0),
     [items],
   );
-  const bestDrop = useMemo(
-    () =>
-      (items ?? []).reduce<InventoryItem | null>(
-        (best, item) => (!best || item.domain.price > best.domain.price ? item : best),
-        null,
-      ),
+  const totalBuyout = useMemo(
+    () => (items ?? []).reduce((sum, item) => sum + item.domain.sell_price, 0),
     [items],
   );
+  const selectedItems = useMemo(
+    () => (items ?? []).filter((item) => selectedIds.has(item.id)),
+    [items, selectedIds],
+  );
+  const selectedValue = selectedItems.reduce((sum, item) => sum + item.domain.sell_price, 0);
 
-  async function sellSelected() {
-    if (!selected || selling) return;
+  function toggle(id: number) {
+    hapticImpact('light');
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(filtered.map((item) => item.id)));
+    hapticImpact('light');
+  }
+
+  function selectCommon() {
+    setSelectedIds(
+      new Set(
+        filtered
+          .filter((item) => item.domain.rarity === 'common')
+          .map((item) => item.id),
+      ),
+    );
+    hapticImpact('light');
+  }
+
+  function selectCheap() {
+    setSelectedIds(
+      new Set(
+        filtered
+          .filter((item) => item.domain.price <= 100)
+          .map((item) => item.id),
+      ),
+    );
+    hapticImpact('light');
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function confirmBulk() {
+    if (!selectedItems.length || selling) return;
     setSelling(true);
     hapticImpact('medium');
     try {
-      const result = await api.sell(selected.id);
+      const result = await api.sellBulk(selectedItems.map((item) => item.id));
       setItems((current) =>
-        current ? current.filter((item) => item.id !== selected.id) : current,
+        current ? current.filter((item) => !result.ids.includes(item.id)) : current,
       );
+      setSelectedIds(new Set());
+      setBulkOpen(false);
       applyBalance(result.balance);
       playCoin();
       hapticNotify('success');
-      toast(`Домен продан за ${result.sold_price} D`, 'success');
-      setSelected(null);
+      toast(`Продано ${result.sold} доменов · +${formatNumber(result.earned)} D`, 'success');
+      void refresh().catch(() => undefined);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Не удалось продать домены', 'error');
+    } finally {
+      setSelling(false);
+    }
+  }
+
+  async function confirmSingle() {
+    if (!sellOne || selling) return;
+    setSelling(true);
+    hapticImpact('light');
+    try {
+      const result = await api.sell(sellOne.id);
+      setItems((current) =>
+        current ? current.filter((item) => item.id !== sellOne.id) : current,
+      );
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(sellOne.id);
+        return next;
+      });
+      applyBalance(result.balance);
+      playCoin();
+      hapticNotify('success');
+      toast(`Домен продан за ${formatNumber(result.sold_price)} D`, 'success');
+      setSellOne(null);
       void refresh().catch(() => undefined);
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Не удалось продать домен', 'error');
@@ -107,13 +181,13 @@ export function InventoryPage() {
   return (
     <div>
       <PageTitle
-        eyebrow="collection vault"
+        eyebrow="collection"
         title="Инвентарь"
-        description="Домены из спинов. Продавайте, чтобы пополнить баланс или собирайте сильнейшую коллекцию."
+        description="Домены из спинов. Выбирайте несколько и продавайте одной сделкой."
         action={
           <Link
             to="/roulette"
-            className="mt-1 flex h-9 w-9 items-center justify-center rounded-xl border border-neon-lime/25 bg-neon-lime/[0.08] text-neon-lime transition active:scale-95"
+            className="mt-1 flex h-9 w-9 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 text-accent-soft transition active:scale-95"
             aria-label="К рулетке"
           >
             <Sparkles size={16} />
@@ -121,35 +195,35 @@ export function InventoryPage() {
         }
       />
 
-      <div className="mb-5 grid grid-cols-3 gap-2">
-        <div className="col-span-2 relative overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-br from-white/[0.05] to-transparent p-4">
-          <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-neon-lime/[0.08] blur-2xl" />
-          <div className="label mb-2">Стоимость коллекции</div>
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="relative col-span-2 overflow-hidden rounded-xl border border-white/[0.06] bg-ink-800 p-3.5">
+          <div className="label mb-1.5">Оценка коллекции</div>
           <div className="flex items-center gap-2">
-            <Wallet size={16} className="text-neon-lime" />
-            <span className="font-display text-2xl font-bold tracking-tight text-white">
+            <Wallet size={15} className="text-accent-soft" />
+            <span className="font-display text-xl font-semibold tracking-tight text-paper">
               {formatNumber(totalValue)}
             </span>
-            <span className="text-[9px] font-bold text-white/25">D</span>
+            <span className="text-[9px] font-semibold text-muted">D</span>
+          </div>
+          <div className="mt-1 text-[8px] text-muted/60">
+            выкуп сейчас ≈ {formatNumber(totalBuyout)} D
           </div>
         </div>
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
-          <div className="label mb-2">Домены</div>
-          <div className="font-display text-2xl font-bold text-white">
+        <div className="rounded-xl border border-white/[0.06] bg-ink-800 p-3.5">
+          <div className="label mb-1.5">Домены</div>
+          <div className="font-display text-xl font-semibold text-paper">
             {items?.length ?? '—'}
           </div>
-          <div className="mt-1 text-[9px] text-white/25">
-            {bestDrop ? `топ ${bestDrop.domain.name}` : 'пока пусто'}
-          </div>
+          <div className="mt-0.5 text-[8px] text-muted/60">в коллекции</div>
         </div>
       </div>
 
-      <div className="mb-5 space-y-2.5">
+      <div className="mb-4 space-y-2">
         <div className="flex items-center gap-1.5 overflow-x-auto axis-x pb-0.5">
-          <div className="mr-0.5 flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] text-white/22">
+          <div className="mr-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-muted/50">
             <Filter size={10} /> зона
           </div>
-          {(['all', '.ru', '.com', '.io'] as ZoneFilter[]).map((value) => (
+          {(['all', '.ru', '.com', '.io', '.xyz'] as ZoneFilter[]).map((value) => (
             <FilterChip
               key={value}
               active={zone === value}
@@ -162,7 +236,7 @@ export function InventoryPage() {
           ))}
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto axis-x pb-0.5">
-          <div className="mr-0.5 flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.15em] text-white/22">
+          <div className="mr-0.5 flex items-center gap-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-muted/50">
             <Tag size={10} /> редкость
           </div>
           <FilterChip
@@ -188,6 +262,30 @@ export function InventoryPage() {
         </div>
       </div>
 
+      {items && items.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-muted/50">
+            Выбрать
+          </span>
+          <button type="button" onClick={selectAll} className="bulk-chip">
+            Все ({filtered.length})
+          </button>
+          <button type="button" onClick={selectCommon} className="bulk-chip">
+            Все Common
+          </button>
+          <button type="button" onClick={selectCheap} className="bulk-chip">
+            До 100 D
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="bulk-chip flex items-center gap-1"
+          >
+            <X size={9} /> Сбросить
+          </button>
+        </div>
+      )}
+
       {items === null ? (
         <SkeletonGrid />
       ) : filtered.length === 0 ? (
@@ -203,9 +301,9 @@ export function InventoryPage() {
             items.length === 0 ? (
               <Link
                 to="/roulette"
-                className="flex items-center gap-1.5 rounded-xl bg-neon-lime px-4 py-2.5 text-[11px] font-bold text-ink-950"
+                className="flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2.5 text-[10px] font-semibold text-white"
               >
-                Крутить <ArrowRight size={13} />
+                Крутить <ArrowRight size={12} />
               </Link>
             ) : (
               <button
@@ -214,7 +312,7 @@ export function InventoryPage() {
                   setZone('all');
                   setRarity('all');
                 }}
-                className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-[11px] font-semibold text-white/60"
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2.5 text-[10px] font-medium text-muted"
               >
                 Сбросить фильтры
               </button>
@@ -223,24 +321,29 @@ export function InventoryPage() {
         />
       ) : (
         <>
-          <div className="mb-3 flex items-center justify-between text-[9px] text-white/25">
-            <span className="font-semibold uppercase tracking-[0.16em]">
+          <div className="mb-2.5 flex items-center justify-between text-[8px] text-muted/60">
+            <span className="font-semibold uppercase tracking-[0.12em]">
               {filtered.length} {filtered.length === 1 ? 'домен' : 'доменов'}
             </span>
             <span>по цене ↓</span>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <AnimatePresence mode="popLayout">
               {filtered.map((item) => (
                 <motion.div
                   key={item.id}
                   layout
-                  initial={{ opacity: 0, scale: 0.96 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.94 }}
-                  transition={{ duration: 0.18 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.16 }}
                 >
-                  <InventoryCard item={item} onSell={() => setSelected(item)} />
+                  <InventoryCard
+                    item={item}
+                    selected={selectedIds.has(item.id)}
+                    onToggle={() => toggle(item.id)}
+                    onSell={() => setSellOne(item)}
+                  />
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -248,62 +351,114 @@ export function InventoryPage() {
         </>
       )}
 
-      <BottomSheet open={Boolean(selected)} onClose={() => setSelected(null)} title="Продать домен?">
-        {selected && (
+      {selectedItems.length > 0 && (
+        <div className="fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 mx-auto w-full max-w-md px-4">
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-accent/40 bg-[#252d3a] px-4 py-3 shadow-card active:scale-[0.99]"
+          >
+            <span className="text-[11px] font-semibold text-paper">
+              Продать выбранные ({selectedItems.length})
+            </span>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-accent-soft">
+              +{formatNumber(selectedValue)} D <ArrowRight size={13} />
+            </span>
+          </button>
+        </div>
+      )}
+
+      <BottomSheet open={Boolean(sellOne)} onClose={() => setSellOne(null)} title="Продать домен?">
+        {sellOne && (
           <div>
             <div
-              className="relative mt-1 overflow-hidden rounded-2xl border p-5 text-center"
+              className="relative overflow-hidden rounded-xl border p-5 text-center"
               style={{
-                borderColor: `${RARITY[selected.domain.rarity].color}55`,
-                background: `linear-gradient(150deg, ${RARITY[selected.domain.rarity].color}22, rgba(13,16,26,.85))`,
+                borderColor: `${RARITY[sellOne.domain.rarity].color}45`,
+                background: `${RARITY[sellOne.domain.rarity].color}12`,
               }}
             >
-              <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              <RarityBadge rarity={selected.domain.rarity} className="mb-3" />
-              <div className="font-display text-[29px] font-bold tracking-tight text-white">
-                {selected.domain.name}
-                <span style={{ color: RARITY[selected.domain.rarity].color }}>
-                  {selected.domain.zone}
+              <RarityBadge rarity={sellOne.domain.rarity} className="mb-3" />
+              <div className="font-display text-[26px] font-semibold tracking-tight text-paper">
+                {sellOne.domain.name}
+                <span style={{ color: RARITY[sellOne.domain.rarity].color }}>
+                  {sellOne.domain.zone}
                 </span>
               </div>
-              <div className="mt-2 text-[11px] text-white/35">
-                {ZONE_META[selected.domain.zone].label} · {RARITY[selected.domain.rarity].label}
+              <div className="mt-1.5 text-[10px] text-muted">
+                {ZONE_META[sellOne.domain.zone].label} · {RARITY[sellOne.domain.rarity].label} ·
+                оценка {formatNumber(sellOne.domain.price)} D
               </div>
             </div>
 
-            <div className="my-4 flex items-center justify-between rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-3.5">
-              <div className="flex items-center gap-2 text-[11px] text-white/45">
-                <BadgeDollarSign size={15} className="text-neon-lime" />
+            <div className="my-3 flex items-center justify-between rounded-xl border border-white/[0.06] bg-ink-900 px-3.5 py-3">
+              <div className="flex items-center gap-2 text-[10px] text-muted">
+                <BadgeDollarSign size={14} className="text-accent-soft" />
                 Вы получите
               </div>
-              <div className="font-display text-xl font-bold text-neon-lime">
-                +{formatNumber(selected.domain.price)} D
+              <div className="font-display text-lg font-semibold text-paper">
+                +{formatNumber(sellOne.domain.sell_price)} D
               </div>
             </div>
-
-            <p className="mb-4 text-center text-[10px] leading-relaxed text-white/28">
-              После продажи домен исчезнет из коллекции и перестанет учитываться в рейтинге.
-            </p>
 
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setSelected(null)}
-                className="rounded-xl border border-white/10 bg-white/[0.04] py-3 text-[12px] font-semibold text-white/55 transition active:scale-[0.98]"
+                onClick={() => setSellOne(null)}
+                className="rounded-lg border border-white/10 bg-white/[0.03] py-2.5 text-[10px] font-medium text-muted"
               >
                 Оставить
               </button>
               <button
                 type="button"
                 disabled={selling}
-                onClick={() => void sellSelected()}
-                className="rounded-xl bg-neon-lime py-3 text-[12px] font-bold text-ink-950 transition active:scale-[0.98] disabled:opacity-60"
+                onClick={() => void confirmSingle()}
+                className="rounded-lg bg-accent py-2.5 text-[10px] font-semibold text-white disabled:opacity-60"
               >
-                {selling ? 'Продаём…' : `Продать за ${selected.domain.price} D`}
+                {selling ? 'Продаём…' : 'Продать'}
               </button>
             </div>
           </div>
         )}
+      </BottomSheet>
+
+      <BottomSheet open={bulkOpen} onClose={() => setBulkOpen(false)} title="Массовая продажа">
+        <div className="space-y-3">
+          <div className="rounded-xl border border-white/[0.06] bg-ink-900 p-4">
+            <div className="flex items-center justify-between text-[10px] text-muted">
+              <span>Выбрано доменов</span>
+              <span className="font-display text-base font-semibold text-paper">
+                {selectedItems.length}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[10px] text-muted">
+              <span>Сумма к зачислению</span>
+              <span className="font-display text-lg font-semibold text-accent-soft">
+                +{formatNumber(selectedValue)} D
+              </span>
+            </div>
+          </div>
+          <p className="text-[9px] leading-relaxed text-muted/70">
+            Все выбранные домены исчезнут из коллекции и перестанут учитываться в рейтинге.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(false)}
+              className="rounded-lg border border-white/10 bg-white/[0.03] py-2.5 text-[10px] font-medium text-muted"
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              disabled={selling}
+              onClick={() => void confirmBulk()}
+              className="rounded-lg bg-accent py-2.5 text-[10px] font-semibold text-white disabled:opacity-60"
+            >
+              {selling ? 'Продаём…' : `Продать (${selectedItems.length})`}
+            </button>
+          </div>
+        </div>
       </BottomSheet>
     </div>
   );
@@ -325,73 +480,101 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        'shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition',
+        'shrink-0 rounded-lg border px-2.5 py-1.5 text-[9px] font-medium transition',
         active
-          ? 'border-white/25 bg-white/[0.11] text-white'
-          : 'border-white/[0.06] bg-white/[0.02] text-white/35 hover:text-white/60',
+          ? 'border-accent/45 bg-accent/12 text-paper'
+          : 'border-white/[0.05] bg-ink-800/60 text-muted hover:text-paper/80',
       )}
-      style={active && color ? { borderColor: `${color}66`, color, background: `${color}16` } : undefined}
+      style={active && color ? { borderColor: `${color}70`, color, background: `${color}16` } : undefined}
     >
       {label}
     </button>
   );
 }
 
-function InventoryCard({ item, onSell }: { item: InventoryItem; onSell: () => void }) {
+function InventoryCard({
+  item,
+  selected,
+  onToggle,
+  onSell,
+}: {
+  item: InventoryItem;
+  selected: boolean;
+  onToggle: () => void;
+  onSell: () => void;
+}) {
   const meta = RARITY[item.domain.rarity];
   return (
     <div
-      className="group relative overflow-hidden rounded-[20px] border bg-ink-800/70 p-3"
-      style={{ borderColor: `${meta.color}33` }}
+      role="button"
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onToggle();
+        }
+      }}
+      className={cn(
+        'relative overflow-hidden rounded-xl border p-2.5 transition active:scale-[0.99]',
+        selected ? 'border-accent/60 bg-accent/[0.07]' : 'border-white/[0.06] bg-ink-800',
+      )}
     >
-      <div
-        className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full opacity-40 blur-2xl"
-        style={{ background: meta.glow }}
-      />
-      <div className="relative flex items-start justify-between">
+      <div className="flex items-start justify-between">
         <RarityBadge rarity={item.domain.rarity} />
-        <span className="font-display text-[10px] font-bold text-white/30">{item.domain.price} D</span>
+        <span
+          className={cn(
+            'flex h-5 w-5 items-center justify-center rounded-md border',
+            selected
+              ? 'border-accent bg-accent text-white'
+              : 'border-white/15 bg-white/[0.02] text-transparent',
+          )}
+        >
+          <Check size={12} strokeWidth={3} />
+        </span>
       </div>
 
-      <div className="relative mt-5 min-h-[48px]">
-        <div className="truncate font-display text-[17px] font-bold leading-tight tracking-tight text-white">
+      <div className="mt-4 min-h-[42px]">
+        <div className="truncate font-display text-[15px] font-semibold leading-tight tracking-tight text-paper">
           {item.domain.name}
         </div>
-        <div className="mt-0.5 text-[11px] font-semibold" style={{ color: meta.color }}>
+        <div className="mt-0.5 text-[10px] font-medium" style={{ color: meta.color }}>
           {item.domain.zone}
         </div>
       </div>
 
-      <div className="relative mt-3 flex items-center justify-between border-t border-white/[0.06] pt-2.5">
-        <span className={cn('rounded px-1.5 py-0.5 text-[8px] font-bold', ZONE_META[item.domain.zone].className)}>
-          {ZONE_META[item.domain.zone].label}
+      <div className="mt-2.5 flex items-center justify-between border-t border-white/[0.05] pt-2">
+        <span className="flex flex-col">
+          <span className="font-display text-[10px] font-semibold text-paper/80">
+            {formatNumber(item.domain.price)} D
+          </span>
+          <span className="text-[7px] text-muted/60">
+            выкуп {formatNumber(item.domain.sell_price)} D
+          </span>
         </span>
         <button
           type="button"
-          onClick={() => {
+          onClick={(event) => {
+            event.stopPropagation();
             hapticImpact('light');
             onSell();
           }}
-          className="rounded-lg border border-white/[0.08] bg-white/[0.045] px-2 py-1 text-[9px] font-bold text-white/60 transition hover:border-neon-lime/30 hover:text-neon-lime active:scale-95"
+          className="rounded-md border border-white/[0.07] bg-white/[0.03] px-1.5 py-1 text-[8px] font-medium text-muted transition hover:text-paper"
         >
           Продать
         </button>
       </div>
-      <div
-        className="absolute inset-x-0 bottom-0 h-[2px] opacity-70"
-        style={{ background: `linear-gradient(90deg, transparent, ${meta.color}, transparent)` }}
-      />
     </div>
   );
 }
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 gap-2.5">
+    <div className="grid grid-cols-2 gap-2">
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}
-          className="h-[158px] animate-pulse rounded-[20px] border border-white/[0.05] bg-white/[0.025]"
+          className="h-[144px] animate-pulse rounded-xl border border-white/[0.04] bg-white/[0.02]"
         />
       ))}
     </div>

@@ -137,12 +137,11 @@ export function DropsPage() {
       <PageTitle
         eyebrow="live feed"
         title="Лента дропов"
-        description="Последние 20 выпавших доменов в реальном времени. Нажмите на дроп, чтобы проверить его честность."
+        description="Последние 20 выпавших доменов в реальном времени — со всех рулеток."
         action={<StatusPill status={status} />}
       />
 
-      <div className="relative mb-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-r from-neon-cyan/[0.06] via-white/[0.025] to-transparent p-4">
-        <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-neon-cyan/[0.09] blur-3xl" />
+      <div className="relative mb-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-ink-800 p-4">
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/[0.07] text-neon-cyan">
@@ -251,11 +250,10 @@ function StatusPill({ status }: { status: Status }) {
 function DropRow({ drop }: { drop: Drop }) {
   const meta = RARITY[drop.rarity];
   return (
-    <Link
-      to={`/verify?spin=${drop.spin_id}`}
+    <div
       className={cn(
-        'group flex items-center gap-3 overflow-hidden rounded-2xl border bg-white/[0.022] px-3 py-2.5 transition hover:bg-white/[0.04]',
-        drop.pity_applied ? 'border-rarity-epic/25' : 'border-white/[0.055]',
+        'flex items-center gap-3 overflow-hidden rounded-xl border px-3 py-2.5',
+        drop.auto_sold ? 'border-accent/20 bg-accent/[0.04]' : 'border-white/[0.055] bg-ink-800/70',
       )}
     >
       <div
@@ -287,9 +285,9 @@ function DropRow({ drop }: { drop: Drop }) {
           <span className="truncate">@{drop.username}</span>
           <span>·</span>
           <span className="shrink-0">{timeAgo(drop.created_at)}</span>
-          {drop.pity_applied && (
-            <span className="shrink-0 rounded bg-rarity-epic/15 px-1 text-[7px] font-bold text-rarity-epic">
-              PITY
+          {drop.auto_sold && (
+            <span className="shrink-0 rounded bg-accent/10 px-1 text-[7px] font-medium text-accent-soft">
+              авто
             </span>
           )}
         </div>
@@ -304,6 +302,6 @@ function DropRow({ drop }: { drop: Drop }) {
           #{drop.spin_id}
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

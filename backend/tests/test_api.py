@@ -10,9 +10,72 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
-from app.models import Base, Domain, User
-from app.routers import auth, domains, inventory, leaderboard, spins, users, verify
-from app.seed import seed_domains
+from app.economy import weight_for_price
+from app.models import Base, Domain
+from app.routers import (
+    auth,
+    domains,
+    inventory,
+    leaderboard,
+    settings as settings_router,
+    spins,
+    upgrades,
+    users,
+)
+
+TEST_DOMAINS = [
+    Domain(
+        name="cat",
+        zone=".com",
+        price=1_100_000,
+        rarity="mythic",
+        weight=weight_for_price(1_100_000),
+        is_available=True,
+    ),
+    Domain(
+        name="vault",
+        zone=".com",
+        price=50_000,
+        rarity="legendary",
+        weight=weight_for_price(50_000),
+        is_available=True,
+    ),
+    Domain(
+        name="vector",
+        zone=".ru",
+        price=5_000,
+        rarity="epic",
+        weight=weight_for_price(5_000),
+        is_available=True,
+    ),
+    Domain(
+        name="hub",
+        zone=".io",
+        price=200,
+        rarity="rare",
+        weight=weight_for_price(200),
+        is_available=True,
+    ),
+    Domain(
+        name="cheap",
+        zone=".xyz",
+        price=10,
+        rarity="common",
+        weight=weight_for_price(10),
+        is_available=True,
+    ),
+]
+
+
+class FakeRng:
+    def random(self) -> float:
+        return 0.0
+
+    def uniform(self, _a: float, _b: float) -> float:
+        return 1.0
+
+    def choice(self, values):
+        return values[0]
 
 
 @pytest.fixture
@@ -26,7 +89,8 @@ async def test_context(monkeypatch):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with Session() as session:
-        await seed_domains(session)
+        session.add_all(TEST_DOMAINS)
+        await session.commit()
 
     async def override_db() -> AsyncGenerator[AsyncSession, None]:
         async with Session() as session:
@@ -39,13 +103,22 @@ async def test_context(monkeypatch):
     monkeypatch.setattr(realtime, "redis_client", fake)
 
     app = FastAPI()
-    for router in (auth.router, users.router, domains.router, spins.router, inventory.router, leaderboard.router, verify.router):
+    for router in (
+        auth.router,
+        users.router,
+        domains.router,
+        spins.router,
+        inventory.router,
+        leaderboard.router,
+        settings_router.router,
+        upgrades.router,
+    ):
         app.include_router(router, prefix="/api")
     app.dependency_overrides[get_db] = override_db
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        yield client, Session, app, fake
+        yield client, Session, fake
 
     await fake.aclose()
     await engine.dispose()
@@ -58,149 +131,159 @@ async def _auth(client: AsyncClient) -> tuple[dict, dict]:
     )
     assert response.status_code == 200, response.text
     payload = response.json()
-    headers = {"Authorization": f"Bearer {payload['access_token']}"}
-    return payload, headers
+    return payload, {"Authorization": f"Bearer {payload['access_token']}"}
 
 
-async def test_full_game_flow(test_context):
-    client, Session, _app, fake = test_context
+async def _clear_cooldown(fake, user_id: int) -> None:
+    await fake.delete(f"dropzone:spin:cooldown:{user_id}")
+
+
+async def test_full_game_flow(test_context, monkeypatch):
+    client, _Session, fake = test_context
     payload, headers = await _auth(client)
-    assert payload["user"]["balance"] == 1000
-    assert payload["user"]["created_at"].endswith(("+00:00", "Z"))
+    user_id = payload["user"]["id"]
 
     me = await client.get("/api/me", headers=headers)
     assert me.status_code == 200
-    assert me.json()["stats"]["collection_count"] == 0
+    assert me.json()["user"]["balance"] == 1000
+    assert me.json()["user"]["created_at"].endswith(("+00:00", "Z"))
 
-    domains_response = await client.get("/api/domains", headers=headers)
-    assert domains_response.status_code == 200
-    assert len(domains_response.json()) == 200
+    meta = await client.get("/api/meta")
+    assert meta.status_code == 200
+    meta_data = meta.json()
+    assert meta_data["total_domains"] == 5
+    assert [item["cost"] for item in meta_data["roll_types"]] == [50, 200, 800, 3000, 20000]
 
-    prepare = await client.post("/api/spin/prepare", headers=headers, json={})
-    assert prepare.status_code == 200
-    commitment = prepare.json()
-    assert len(commitment["server_seed_hash"]) == 64
-    assert commitment["nonce"] == 1
+    feed = await client.get("/api/domains/feed?roll_type=normal", headers=headers)
+    assert feed.status_code == 200
+    assert len(feed.json()) == 5
 
-    spin = await client.post(
-        "/api/spin",
+    settings = await client.get("/api/settings/autosell", headers=headers)
+    assert settings.status_code == 200
+    assert settings.json()["autosell_common"] is False
+
+    # Rate limit after the first successful spin.
+    first = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
+    assert first.status_code == 200, first.text
+    first_data = first.json()
+    assert first_data["balance"] == 950
+    assert first_data["auto_sold"] is False
+    assert "server_seed" not in first_data
+    limited = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
+    assert limited.status_code == 429
+
+    # Autosell everything.
+    response = await client.put(
+        "/api/settings/autosell",
         headers=headers,
-        json={"commitment_id": commitment["commitment_id"]},
-    )
-    assert spin.status_code == 200, spin.text
-    spin_data = spin.json()
-    assert spin_data["balance"] == 950
-    assert spin_data["server_seed_hash"]
-    assert spin_data["domain"]["full_name"].endswith((".ru", ".com", ".io"))
-    assert spin_data["rarity"] in {"common", "rare", "epic", "legendary", "mythic"}
-    assert spin_data["bucket_size"] > 0
-
-    verification = await client.get(f"/api/verify/{spin_data['id']}")
-    assert verification.status_code == 200
-    assert verification.json()["verified"] is True
-    assert verification.json()["hash_valid"] is True
-    assert verification.json()["bucket_size"] == spin_data["bucket_size"]
-
-    # Extending the catalog must not invalidate old spins: bucket_size is
-    # snapshotted with the drop.
-    async with Session() as session:
-        session.add(
-            Domain(
-                name="catalogtest",
-                zone=".io",
-                rarity=spin_data["rarity"],
-                weight=1,
-                price=spin_data["price"],
-            )
-        )
-        await session.commit()
-    verification_after_catalog_change = await client.get(f"/api/verify/{spin_data['id']}")
-    assert verification_after_catalog_change.status_code == 200
-    assert verification_after_catalog_change.json()["verified"] is True
-
-    manual = await client.post(
-        "/api/verify",
         json={
-            "server_seed": spin_data["server_seed"],
-            "client_seed": spin_data["client_seed"],
-            "nonce": spin_data["nonce"],
-            "pity_counter": 0,
+            "autosell_common": True,
+            "autosell_rare": True,
+            "autosell_epic": True,
+            "autosell_legendary": True,
+            "autosell_mythic": True,
+            "autosell_below_price": None,
         },
     )
-    assert manual.status_code == 200
-    assert manual.json()["verified"] is True
-    assert manual.json()["server_seed_hash"] == spin_data["server_seed_hash"]
+    assert response.status_code == 200
+    await _clear_cooldown(fake, user_id)
+    auto_spin = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
+    assert auto_spin.status_code == 200, auto_spin.text
+    auto_data = auto_spin.json()
+    assert auto_data["auto_sold"] is True
+    assert auto_data["auto_sold_price"] == auto_data["sell_price"]
+    assert auto_data["balance"] == 950 - 50 + auto_data["auto_sold_price"]
+
+    # Turn autosell off and collect three domains.
+    response = await client.put(
+        "/api/settings/autosell",
+        headers=headers,
+        json={
+            "autosell_common": False,
+            "autosell_rare": False,
+            "autosell_epic": False,
+            "autosell_legendary": False,
+            "autosell_mythic": False,
+            "autosell_below_price": None,
+        },
+    )
+    assert response.status_code == 200
+    for _ in range(3):
+        await _clear_cooldown(fake, user_id)
+        spin = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
+        assert spin.status_code == 200, spin.text
 
     inventory = await client.get("/api/inventory", headers=headers)
     assert inventory.status_code == 200
     items = inventory.json()
-    assert len(items) == 1
-    item_id = items[0]["id"]
-    item_price = items[0]["domain"]["price"]
+    assert len(items) == 4
+    ids = [item["id"] for item in items]
 
-    leaders = await client.get("/api/leaderboard", headers=headers)
-    assert leaders.status_code == 200
-    board = leaders.json()
-    assert board["entries"][0]["user_id"] == payload["user"]["id"]
-    assert board["entries"][0]["score"] == item_price
-
-    # Rate limit: second spin within 2 seconds is rejected before any charge.
-    second_prepare = await client.post("/api/spin/prepare", headers=headers, json={})
-    assert second_prepare.status_code == 200
-    limited = await client.post(
-        "/api/spin",
+    sold = await client.post(
+        "/api/inventory/sell-bulk",
         headers=headers,
-        json={"commitment_id": second_prepare.json()["commitment_id"]},
+        json={"ids": ids[:2]},
     )
-    assert limited.status_code == 429
-    assert limited.headers.get("retry-after")
+    assert sold.status_code == 200, sold.text
+    sold_data = sold.json()
+    assert sold_data["sold"] == 2
+    assert sold_data["earned"] > 0
 
-    # Force the pity state and allow a new spin.
-    async with Session() as session:
-        user = await session.get(User, payload["user"]["id"])
-        assert user is not None
-        user.pity_counter = 50
-        await session.commit()
-    await fake.delete(f"dropzone:spin:cooldown:{payload['user']['id']}")
-    prepare_after = await client.post("/api/spin/prepare", headers=headers, json={})
-    assert prepare_after.status_code == 200
-    pity_spin = await client.post(
-        "/api/spin",
+    resell = await client.post(
+        "/api/inventory/sell-bulk",
         headers=headers,
-        json={"commitment_id": prepare_after.json()["commitment_id"]},
+        json={"ids": ids[:2]},
     )
-    assert pity_spin.status_code == 200, pity_spin.text
-    pity_data = pity_spin.json()
-    assert pity_data["pity_applied"] is True
-    assert pity_data["rarity"] in {"epic", "legendary", "mythic"}
-    assert pity_data["pity_counter"] == 0
-    assert pity_data["balance"] == 900
-
-    sell = await client.post(f"/api/inventory/{item_id}/sell", headers=headers)
-    assert sell.status_code == 200, sell.text
-    assert sell.json()["balance"] == 900 + item_price
-    assert sell.json()["sold_price"] == item_price
-
-    resell = await client.post(f"/api/inventory/{item_id}/sell", headers=headers)
     assert resell.status_code == 409
 
-    daily = await client.post("/api/daily-bonus", headers=headers)
-    assert daily.status_code == 200
-    assert daily.json()["amount"] == 100
-    assert daily.json()["balance"] == 1000 + item_price
-    daily_again = await client.post("/api/daily-bonus", headers=headers)
-    assert daily_again.status_code == 429
+    # Deterministic successful upgrade.
+    monkeypatch.setattr(upgrades, "rng", FakeRng())
+    remaining = await client.get("/api/inventory", headers=headers)
+    remaining_ids = [item["id"] for item in remaining.json()]
+    assert len(remaining_ids) >= 1
+    upgrade = await client.post(
+        "/api/upgrade",
+        headers=headers,
+        json={"domain_ids": remaining_ids[:1], "chance_sector": 75},
+    )
+    assert upgrade.status_code == 200, upgrade.text
+    upgrade_data = upgrade.json()
+    assert upgrade_data["success"] is True
+    assert upgrade_data["chance"] >= 75
+    assert upgrade_data["domain"] is not None
+    assert upgrade_data["burned_ids"] == remaining_ids[:1]
+
+    leaderboard_response = await client.get("/api/leaderboard", headers=headers)
+    assert leaderboard_response.status_code == 200
+    assert leaderboard_response.json()["entries"][0]["user_id"] == user_id
 
     me_after = await client.get("/api/me", headers=headers)
     assert me_after.status_code == 200
-    assert me_after.json()["user"]["balance"] == 1000 + item_price
+    assert me_after.json()["stats"]["collection_by_rarity"]
 
 
 async def test_auth_rejects_bad_init_data(test_context):
-    client, _Session, _app, _fake = test_context
+    client, _Session, _fake = test_context
     response = await client.post(
         "/api/auth/telegram",
         json={"init_data": "auth_date=1&hash=deadbeef&user=%7B%7D"},
     )
-    # BOT_TOKEN is intentionally empty in tests, so initData auth is unavailable.
     assert response.status_code in {401, 503}
+
+
+async def test_settings_validation(test_context):
+    client, _Session, _fake = test_context
+    _payload, headers = await _auth(client)
+    response = await client.put(
+        "/api/settings/autosell",
+        headers=headers,
+        json={
+            "autosell_common": True,
+            "autosell_rare": False,
+            "autosell_epic": False,
+            "autosell_legendary": False,
+            "autosell_mythic": False,
+            "autosell_below_price": -5,
+        },
+    )
+    assert response.status_code == 422

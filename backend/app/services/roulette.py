@@ -1,0 +1,39 @@
+from __future__ import annotations
+
+import random
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.economy import Rarity
+from app.models import Domain
+
+
+async def weighted_random_domain(
+    db: AsyncSession,
+    rarities: tuple[Rarity, ...],
+) -> Domain | None:
+    """Pick a domain with probability proportional to ``domains.weight``.
+
+    PostgreSQL performs the weighted key extraction in the database so a
+    100k-row catalog does not have to be transferred to Python.  SQLite is
+    used by tests and gets an in-memory ``random.choices`` fallback.
+    """
+    where = [Domain.is_available.is_(True), Domain.rarity.in_(rarities)]
+    dialect = db.get_bind().dialect.name
+
+    if dialect == "postgresql":
+        # Efraimidis-Spirakis weighted sampling: min(E_i / w_i).
+        statement = (
+            select(Domain)
+            .where(*where)
+            .order_by(-func.ln(func.random()) / Domain.weight)
+            .limit(1)
+        )
+        return await db.scalar(statement)
+
+    pool = (await db.scalars(select(Domain).where(*where))).all()
+    if not pool:
+        return None
+    weights = [max(float(domain.weight), 1e-9) for domain in pool]
+    return random.choices(pool, weights=weights, k=1)[0]

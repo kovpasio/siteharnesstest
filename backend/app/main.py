@@ -11,8 +11,17 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import SessionLocal, close_db, init_db
-from app.economy import expected_value, house_edge
-from app.routers import auth, domains, drops, inventory, leaderboard, spins, users, verify
+from app.routers import (
+    auth,
+    domains,
+    drops,
+    inventory,
+    leaderboard,
+    settings as settings_router,
+    spins,
+    upgrades,
+    users,
+)
 from app.schemas import HealthOut
 from app.services.realtime import redis_drops_listener
 from app.services.redis_client import close_redis, ping_redis, redis_client
@@ -33,12 +42,7 @@ async def lifespan(app: FastAPI):
     stop_event = asyncio.Event()
     listener = asyncio.create_task(redis_drops_listener(stop_event))
     app.state.drops_listener = listener
-    logger.info(
-        "%s started | EV=%.2f | house edge=%.1f%%",
-        settings.app_name,
-        expected_value(),
-        house_edge(settings.spin_cost) * 100,
-    )
+    logger.info("%s started", settings.app_name)
     try:
         yield
     finally:
@@ -52,7 +56,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DROP.ZONE API",
-    description="Telegram Mini App: виртуальная рулетка доменов с provably fair.",
+    description="Telegram Mini App: виртуальная рулетка доменов.",
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/api/docs",
@@ -76,7 +80,8 @@ app.include_router(spins.router, prefix=api_prefix)
 app.include_router(inventory.router, prefix=api_prefix)
 app.include_router(leaderboard.router, prefix=api_prefix)
 app.include_router(drops.router, prefix=api_prefix)
-app.include_router(verify.router, prefix=api_prefix)
+app.include_router(settings_router.router, prefix=api_prefix)
+app.include_router(upgrades.router, prefix=api_prefix)
 
 
 @app.get("/api/health", response_model=HealthOut, tags=["system"])

@@ -2,48 +2,72 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.economy import RARITY_META
+from app.domain_generator import generate_domains
+from app.economy import MAX_DOMAIN_COUNT
 from app.models import Domain
-from app.seed_data import SEED_GROUPS, ZONES
 
 logger = logging.getLogger(__name__)
+BATCH_SIZE = 5_000
 
 
-async def seed_domains(session: AsyncSession) -> None:
-    existing = await session.scalar(select(func.count()).select_from(Domain))
-    if existing and existing >= 200:
-        logger.info("Domain catalog already seeded (%s domains)", existing)
+async def seed_domains(
+    session: AsyncSession,
+    target: int = MAX_DOMAIN_COUNT,
+) -> None:
+    """Seed the large catalog once, or top up an older volume."""
+    available = int(
+        await session.scalar(
+            select(func.count()).select_from(Domain).where(Domain.is_available.is_(True))
+        )
+        or 0
+    )
+    if available >= target:
+        logger.info("Domain catalog ready (%s available domains)", available)
         return
 
-    if existing:
-        logger.info("Catalog has %s domains; adding only missing seed rows", existing)
+    logger.info("Generating %s virtual domains (current available: %s)", target, available)
+    domains = generate_domains(target)
 
-    existing_keys = set(
-        (await session.execute(select(Domain.name, Domain.zone))).all()
-    )
+    # Old catalogs are kept for historical inventory rows but removed from
+    # the roulette pool.
+    await session.execute(update(Domain).values(is_available=False))
 
-    global_index = 0
-    created = 0
-    for rarity, names in SEED_GROUPS:
-        meta = RARITY_META[rarity]
-        for name in names:
-            zone = ZONES[global_index % len(ZONES)]
-            global_index += 1
-            if (name, zone) in existing_keys:
-                continue
-            session.add(
-                Domain(
-                    name=name,
-                    zone=zone,
-                    rarity=rarity,
-                    weight=meta["weight"],
-                    price=meta["price"],
-                )
-            )
-            created += 1
+    dialect = session.get_bind().dialect.name
+    for offset in range(0, len(domains), BATCH_SIZE):
+        batch = domains[offset : offset + BATCH_SIZE]
+        rows = [
+            {
+                "name": domain.name,
+                "zone": domain.zone,
+                "rarity": domain.rarity,
+                "weight": domain.weight,
+                "price": domain.price,
+                "is_available": domain.is_available,
+            }
+            for domain in batch
+        ]
+        insert_fn = pg_insert if dialect == "postgresql" else sqlite_insert
+        statement = insert_fn(Domain).values(rows)
+        statement = statement.on_conflict_do_update(
+            index_elements=["name", "zone"],
+            set_={
+                "rarity": statement.excluded.rarity,
+                "weight": statement.excluded.weight,
+                "price": statement.excluded.price,
+                "is_available": statement.excluded.is_available,
+            },
+        )
+        await session.execute(statement)
+        logger.info(
+            "Seeded %s/%s domains",
+            min(offset + len(batch), len(domains)),
+            len(domains),
+        )
 
     await session.commit()
-    logger.info("Seeded %s virtual domains", created)
+    logger.info("Seeded %s virtual domains", len(domains))

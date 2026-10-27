@@ -64,7 +64,7 @@ async def run_bot() -> None:
     async def help_command(message: Message) -> None:
         await message.answer(
             "Нажми «Открыть DROP.ZONE» ниже. Внутри: рулетка, инвентарь, "
-            "рейтинг, живая лента дропов и проверка честности.",
+            "апгрейдер, настройки автопродажи и живая лента дропов.",
             reply_markup=keyboard,
         )
 

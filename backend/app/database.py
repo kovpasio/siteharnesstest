@@ -26,6 +26,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db(retries: int = 30, delay: float = 1.0) -> None:
     """Create tables and seed data. Retries while Postgres starts up."""
     from app import models  # noqa: F401  (register metadata)
+    from app.migrations import migrate_schema
     from app.models import Base
     from app.seed import seed_domains
 
@@ -34,6 +35,7 @@ async def init_db(retries: int = 30, delay: float = 1.0) -> None:
         try:
             async with engine.begin() as connection:
                 await connection.run_sync(Base.metadata.create_all)
+                await migrate_schema(connection)
             async with SessionLocal() as session:
                 await seed_domains(session)
             logger.info("Database ready")

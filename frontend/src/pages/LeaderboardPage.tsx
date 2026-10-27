@@ -111,7 +111,6 @@ export function LeaderboardPage() {
               animate={{ opacity: 1, y: 0 }}
               className="sticky bottom-28 z-10 mt-4"
             >
-              <div className="absolute inset-0 rounded-2xl bg-neon-lime/10 blur-xl" />
               <div className="relative mb-2 flex items-center justify-between">
                 <span className="label">Ваша позиция</span>
                 <Trophy size={12} className="text-neon-lime" />

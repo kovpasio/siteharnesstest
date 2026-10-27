@@ -2,22 +2,22 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
+  ArrowUpFromLine,
   ArrowUpRight,
   ChevronRight,
   Coins,
   Gift,
   Layers,
-  ShieldCheck,
+  Settings2,
   Sparkles,
   Trophy,
 } from 'lucide-react';
-import { api } from '@/api/client';
+import { ApiError, api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useSound } from '@/context/SoundContext';
 import { Avatar } from '@/components/Avatar';
 import { Coin } from '@/components/Coin';
-import { PityMeter } from '@/components/PityMeter';
 import { SectionTitle } from '@/components/SectionTitle';
 import { StatTile } from '@/components/StatTile';
 import {
@@ -30,7 +30,6 @@ import {
   RARITY_ORDER,
   timeAgo,
 } from '@/lib/utils';
-import { ApiError } from '@/api/client';
 
 export function ProfilePage() {
   const { me, refresh } = useAuth();
@@ -53,7 +52,7 @@ export function ProfilePage() {
   async function claimDaily() {
     if (!dailyReady || claiming) return;
     setClaiming(true);
-    hapticImpact('medium');
+    hapticImpact('light');
     try {
       const result = await api.dailyBonus();
       playCoin();
@@ -61,84 +60,68 @@ export function ProfilePage() {
       toast(`Ежедневный бонус +${result.amount} D`, 'success');
       await refresh();
     } catch (error) {
-      const message =
-        error instanceof ApiError ? error.message : 'Не удалось получить бонус';
-      toast(message, 'error');
+      toast(error instanceof ApiError ? error.message : 'Не удалось получить бонус', 'error');
     } finally {
       setClaiming(false);
     }
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <motion.section
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-ink-800/70 p-5 shadow-card"
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-2xl border border-white/[0.07] bg-ink-800 p-4 shadow-soft"
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-neon-violet/20 blur-[70px]" />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 h-44 w-44 rounded-full bg-neon-lime/10 blur-[60px]" />
-        <div className="noise pointer-events-none absolute inset-0 opacity-[0.035]" />
-
-        <div className="relative flex items-start gap-4">
-          <div className="relative">
-            <Avatar
-              src={user.avatar_url}
-              name={user.display_name}
-              size={76}
-              glow
-            />
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-ink-800 bg-neon-lime">
-              <span className="h-1.5 w-1.5 rounded-full bg-ink-950" />
-            </span>
-          </div>
-          <div className="min-w-0 flex-1 pt-1">
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="rounded-full border border-neon-lime/25 bg-neon-lime/10 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-neon-lime">
+        <div className="flex items-start gap-3.5">
+          <Avatar src={user.avatar_url} name={user.display_name} size={68} />
+          <div className="min-w-0 flex-1 pt-0.5">
+            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="rounded-md border border-accent/25 bg-accent/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-accent-soft">
                 pilot
               </span>
               {stats.rank && (
-                <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-white/55">
+                <span className="flex items-center gap-1 rounded-md border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[8px] font-semibold text-muted">
                   <Trophy size={9} />
                   #{stats.rank}
                 </span>
               )}
             </div>
-            <h1 className="truncate font-display text-[22px] font-bold leading-tight tracking-tight text-white">
+            <h1 className="truncate font-display text-xl font-semibold leading-tight text-paper">
               {user.display_name}
             </h1>
-            <p className="mt-0.5 truncate text-xs text-white/35">
+            <p className="mt-0.5 truncate text-[11px] text-muted">
               {user.username ? `@${user.username}` : 'anonymous pilot'}
             </p>
-            <p className="mt-2 text-[10px] text-white/25">
-              В системе {timeAgo(user.created_at)} · {user.total_spins} спинов
+            <p className="mt-1.5 text-[9px] text-muted/60">
+              В системе {timeAgo(user.created_at)} · {formatNumber(user.total_spins)} спинов
             </p>
           </div>
         </div>
 
-        <div className="relative mt-5 flex items-end justify-between rounded-2xl border border-white/[0.07] bg-black/20 p-4">
+        <div className="mt-4 flex items-end justify-between rounded-xl border border-white/[0.06] bg-ink-900 px-3.5 py-3">
           <div>
-            <div className="label mb-2">Баланс</div>
-            <div className="flex items-center gap-2.5">
-              <Coin size={26} />
-              <span className="font-display text-[34px] font-bold leading-none tracking-tight text-white">
+            <div className="label mb-1.5">Баланс</div>
+            <div className="flex items-center gap-2">
+              <Coin size={24} />
+              <span className="font-display text-[30px] font-semibold leading-none tracking-tight text-paper">
                 {formatNumber(user.balance)}
               </span>
-              <span className="mb-1 text-[10px] font-bold text-white/25">D</span>
+              <span className="mb-0.5 text-[10px] font-semibold text-muted">D</span>
             </div>
           </div>
           <Link
             to="/roulette"
             onClick={() => hapticImpact('light')}
-            className="flex items-center gap-1.5 rounded-xl border border-neon-lime/30 bg-neon-lime/[0.09] px-3 py-2.5 text-[11px] font-bold text-neon-lime transition active:scale-95"
+            className="flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-[10px] font-semibold text-accent-soft transition active:scale-95"
           >
             Крутить
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={12} />
           </Link>
         </div>
 
-        <div className="relative mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-3 gap-2">
           <StatTile
             icon={Layers}
             label="Домены"
@@ -149,15 +132,15 @@ export function ProfilePage() {
             icon={Coins}
             label="Сумма"
             value={formatNumber(stats.collection_value)}
-            hint="монет"
-            accent="#b6ff3b"
+            hint="оценка"
+            accent="#6C8EBF"
           />
           <StatTile
             icon={Trophy}
             label="Место"
             value={stats.rank ? `#${stats.rank}` : '—'}
             hint={`из ${stats.total_players}`}
-            accent="#ff8a1f"
+            accent="#C9884A"
           />
         </div>
       </motion.section>
@@ -167,80 +150,89 @@ export function ProfilePage() {
         onClick={claimDaily}
         disabled={!dailyReady || claiming}
         className={cn(
-          'group relative w-full overflow-hidden rounded-[22px] border p-4 text-left transition active:scale-[0.99]',
+          'relative w-full overflow-hidden rounded-2xl border p-3.5 text-left transition active:scale-[0.99]',
           dailyReady
-            ? 'border-neon-lime/30 bg-gradient-to-r from-neon-lime/[0.13] via-neon-lime/[0.055] to-transparent'
-            : 'border-white/[0.07] bg-white/[0.02]',
+            ? 'border-rarity-legendary/25 bg-rarity-legendary/[0.06]'
+            : 'border-white/[0.06] bg-ink-800/60',
         )}
       >
-        <div className="flex items-center gap-2.5 min-[360px]:gap-3.5">
+        <div className="flex items-center gap-3">
           <div
             className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border',
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border',
               dailyReady
-                ? 'border-neon-lime/30 bg-neon-lime/15 text-neon-lime'
-                : 'border-white/10 bg-white/[0.04] text-white/30',
+                ? 'border-rarity-legendary/25 bg-rarity-legendary/10 text-rarity-legendary'
+                : 'border-white/[0.07] bg-white/[0.03] text-muted/60',
             )}
           >
-            <Gift size={19} />
+            <Gift size={18} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-display text-[12px] font-semibold text-white min-[360px]:text-[13px]">
+              <span className="font-display text-[12px] font-semibold text-paper">
                 Ежедневный бонус
               </span>
               {dailyReady && (
-                <span className="hidden rounded-full bg-neon-lime px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-ink-950 min-[360px]:inline">
+                <span className="rounded bg-rarity-legendary/15 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-wider text-rarity-legendary">
                   ready
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[10px] text-white/35">
+            <p className="mt-0.5 text-[9px] text-muted">
               {dailyReady
-                ? 'Заберите +100 D — хватит на два спина'
+                ? 'Заберите +100 D — хватит на два обычных спина'
                 : `Следующий через ${countdown(stats.daily_available_at)}`}
             </p>
           </div>
           <div className="text-right">
-            <div
-              className={cn(
-                'font-display text-[17px] font-bold',
-                dailyReady ? 'text-neon-lime' : 'text-white/30',
-              )}
-            >
-              {claiming ? '...' : '+100'}
+            <div className={cn('font-display text-[15px] font-semibold', dailyReady ? 'text-rarity-legendary' : 'text-muted/60')}>
+              {claiming ? '…' : '+100'}
             </div>
-            <div className="mt-0.5 text-[9px] text-white/25">каждые 24ч</div>
+            <div className="mt-0.5 text-[8px] text-muted/60">каждые 24ч</div>
           </div>
         </div>
-        {dailyReady && (
-          <div className="shine absolute inset-0 bg-[length:200%_100%] opacity-30 animate-shimmer" />
-        )}
       </button>
 
-      <PityMeter counter={stats.pity_counter} threshold={stats.pity_threshold} />
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          to="/upgrader"
+          className="rounded-2xl border border-white/[0.06] bg-ink-800 p-3.5 transition active:scale-[0.99]"
+        >
+          <ArrowUpFromLine size={17} className="mb-2.5 text-accent-soft" />
+          <div className="text-[11px] font-semibold text-paper">Апгрейдер</div>
+          <div className="mt-0.5 text-[9px] text-muted">Объединить домены</div>
+        </Link>
+        <Link
+          to="/settings"
+          className="rounded-2xl border border-white/[0.06] bg-ink-800 p-3.5 transition active:scale-[0.99]"
+        >
+          <Settings2 size={17} className="mb-2.5 text-muted" />
+          <div className="text-[11px] font-semibold text-paper">Автопродажа</div>
+          <div className="mt-0.5 text-[9px] text-muted">Настройки дропа</div>
+        </Link>
+      </div>
 
       <section>
         <SectionTitle
           action={
             <Link
               to="/inventory"
-              className="flex items-center gap-0.5 text-[10px] font-semibold text-white/35 transition hover:text-white/70"
+              className="flex items-center gap-0.5 text-[9px] font-medium text-muted transition hover:text-paper"
             >
-              Вся коллекция <ChevronRight size={12} />
+              Вся коллекция <ChevronRight size={11} />
             </Link>
           }
         >
           Состав коллекции
         </SectionTitle>
-        <div className="rounded-3xl border border-white/[0.07] bg-white/[0.025] p-4">
+        <div className="rounded-2xl border border-white/[0.06] bg-ink-800 p-4">
           {stats.collection_count === 0 ? (
-            <div className="flex flex-col items-center py-5 text-center">
-              <Sparkles size={22} className="mb-2 text-white/20" />
-              <p className="text-xs text-white/45">Коллекция пока пуста</p>
+            <div className="flex flex-col items-center py-4 text-center">
+              <Sparkles size={20} className="mb-2 text-muted/40" />
+              <p className="text-[11px] text-muted">Коллекция пока пуста</p>
               <Link
                 to="/roulette"
-                className="mt-2 text-[10px] font-semibold text-neon-lime/80 underline decoration-neon-lime/30 underline-offset-4"
+                className="mt-2 text-[10px] font-medium text-accent-soft underline decoration-accent/30 underline-offset-4"
               >
                 Сделать первый спин
               </Link>
@@ -252,22 +244,19 @@ export function ProfilePage() {
                 const meta = RARITY[rarity];
                 return (
                   <div key={rarity} className="flex items-center gap-3">
-                    <div className="w-[70px] shrink-0 text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>
+                    <div className="w-[68px] shrink-0 text-[8px] font-semibold uppercase tracking-[0.1em]" style={{ color: meta.color }}>
                       {meta.label}
                     </div>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${(count / maxCount) * 100}%` }}
-                        transition={{ duration: 0.5, delay: 0.05 }}
+                        transition={{ duration: 0.45, ease: 'easeOut' }}
                         className="h-full rounded-full"
-                        style={{
-                          background: meta.color,
-                          boxShadow: count > 0 ? `0 0 10px ${meta.glow}` : 'none',
-                        }}
+                        style={{ background: meta.color }}
                       />
                     </div>
-                    <div className="w-6 text-right font-display text-[11px] font-bold tabular-nums text-white/55">
+                    <div className="w-6 text-right font-display text-[11px] font-semibold tabular-nums text-muted">
                       {count}
                     </div>
                   </div>
@@ -278,26 +267,8 @@ export function ProfilePage() {
         </div>
       </section>
 
-      <Link
-        to="/verify"
-        className="flex items-center gap-3.5 rounded-[22px] border border-white/[0.07] bg-white/[0.025] p-4 transition hover:border-neon-cyan/20 hover:bg-white/[0.04] active:scale-[0.99]"
-      >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-neon-cyan/20 bg-neon-cyan/[0.07] text-neon-cyan">
-          <ShieldCheck size={18} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="font-display text-[12px] font-semibold text-white">
-            Проверить честность
-          </div>
-          <p className="mt-0.5 text-[10px] text-white/32">
-            Provably Fair · SHA-256 + HMAC
-          </p>
-        </div>
-        <ChevronRight size={16} className="text-white/25" />
-      </Link>
-
-      <div className="flex items-center justify-center gap-1.5 pb-1 text-[9px] text-white/18">
-        <ShieldCheck size={10} />
+      <div className="flex items-center justify-center gap-1.5 pb-1 text-[9px] text-muted/50">
+        <Sparkles size={10} />
         Все домены виртуальные. Реальных регистраций и денег нет.
       </div>
     </div>

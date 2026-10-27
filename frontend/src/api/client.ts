@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
-  Commitment,
+  AutosellSettings,
+  BulkSellResult,
   DailyBonusResponse,
   Domain,
   DropsResponse,
@@ -9,9 +10,10 @@ import type {
   MeResponse,
   Meta,
   Rarity,
+  RollType,
   SellResult,
   SpinResult,
-  VerifyResult,
+  UpgradeResult,
 } from '@/types';
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
@@ -79,11 +81,9 @@ async function request<T>(
 
   if (!response.ok) {
     let message = `Ошибка ${response.status}`;
-    let detail: unknown;
     try {
       const data = await response.json();
-      detail = data?.detail;
-      message = detailToString(detail);
+      message = detailToString(data?.detail);
     } catch {
       // non-JSON response
     }
@@ -131,16 +131,15 @@ export async function authenticateTelegram(): Promise<AuthResponse> {
 export const api = {
   me: () => request<MeResponse>('/me'),
 
-  prepareSpin: (clientSeed?: string) =>
-    request<Commitment>('/spin/prepare', {
-      method: 'POST',
-      body: JSON.stringify(clientSeed ? { client_seed: clientSeed } : {}),
-    }),
+  meta: () => request<Meta>('/meta', {}, false),
 
-  spin: (commitmentId?: number) =>
+  feed: (rollType: RollType, limit = 60) =>
+    request<Domain[]>(`/domains/feed?roll_type=${encodeURIComponent(rollType)}&limit=${limit}`),
+
+  spin: (rollType: RollType) =>
     request<SpinResult>('/spin', {
       method: 'POST',
-      body: JSON.stringify(commitmentId ? { commitment_id: commitmentId } : {}),
+      body: JSON.stringify({ roll_type: rollType }),
     }),
 
   inventory: (params?: { zone?: string; rarity?: Rarity }) => {
@@ -148,45 +147,38 @@ export const api = {
     if (params?.zone) query.set('zone', params.zone);
     if (params?.rarity) query.set('rarity', params.rarity);
     const serialized = query.toString();
-    const suffix = serialized ? `?${serialized}` : '';
-    return request<InventoryItem[]>(`/inventory${suffix}`);
+    return request<InventoryItem[]>(`/inventory${serialized ? `?${serialized}` : ''}`);
   },
 
   sell: (itemId: number) =>
     request<SellResult>(`/inventory/${itemId}/sell`, { method: 'POST' }),
 
-  leaderboard: () => request<LeaderboardResponse>('/leaderboard'),
+  sellBulk: (ids: number[]) =>
+    request<BulkSellResult>('/inventory/sell-bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
 
-  domains: (params?: { zone?: string; rarity?: string }) => {
-    const query = new URLSearchParams();
-    if (params?.zone) query.set('zone', params.zone);
-    if (params?.rarity) query.set('rarity', params.rarity);
-    const serialized = query.toString();
-    const suffix = serialized ? `?${serialized}` : '';
-    return request<Domain[]>(`/domains${suffix}`);
-  },
+  leaderboard: () => request<LeaderboardResponse>('/leaderboard'),
 
   drops: () => request<DropsResponse>('/drops/recent'),
 
   dailyBonus: () =>
     request<DailyBonusResponse>('/daily-bonus', { method: 'POST' }),
 
-  verifySpin: (spinId: number) =>
-    request<VerifyResult>(`/verify/${spinId}`, {}, false),
+  autosell: () => request<AutosellSettings>('/settings/autosell'),
 
-  verifySeeds: (payload: {
-    server_seed: string;
-    client_seed: string;
-    nonce: number;
-    pity_counter?: number;
-  }) =>
-    request<VerifyResult>(
-      '/verify',
-      { method: 'POST', body: JSON.stringify(payload) },
-      false,
-    ),
+  updateAutosell: (settings: AutosellSettings) =>
+    request<AutosellSettings>('/settings/autosell', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
 
-  meta: () => request<Meta>('/meta', {}, false),
+  upgrade: (domainIds: number[], chanceSector: 10 | 25 | 50 | 75) =>
+    request<UpgradeResult>('/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ domain_ids: domainIds, chance_sector: chanceSector }),
+    }),
 };
 
 export function dropsWebSocketUrl(): string {
