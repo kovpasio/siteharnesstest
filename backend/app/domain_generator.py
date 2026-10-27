@@ -256,6 +256,20 @@ def _split_zone(domain: str) -> tuple[str, str]:
     raise ValueError(f"unsupported real domain: {domain}")
 
 
+PRICE_RANGES: dict[str, tuple[int, int]] = {
+    "common": (40, 90),
+    "rare": (250, 900),
+    "epic": (1_200, 4_500),
+    "legendary": (6_000, 25_000),
+    "mythic": (35_000, 150_000),
+}
+
+
+def _game_price(full_name: str, rarity: str) -> int:
+    low, high = PRICE_RANGES[rarity]
+    return random.Random(f"{SEED}:{full_name}:game-price:{rarity}").randint(low, high)
+
+
 @lru_cache(maxsize=1)
 def _economy_slots() -> tuple[GeneratedDomain, ...]:
     """Reuse the tuned game economy while replacing all names with real ones.
@@ -280,7 +294,11 @@ def generate_domains(target: int = MAX_DOMAIN_COUNT) -> list[GeneratedDomain]:
         except ValueError:
             continue
         explicit = PREMIUM_PRICES.get((name, zone))
-        price = explicit if explicit is not None else int(slot.price)
+        price = (
+            explicit
+            if explicit is not None
+            else _game_price(full_name, slot.rarity)
+        )
         rarity = rarity_for_price(price)
         domains.append(
             GeneratedDomain(

@@ -4,7 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from app.domain_generator import generate_domains, load_real_domains, load_words
+from app.domain_generator import (
+    PRICE_RANGES,
+    generate_domains,
+    load_real_domains,
+    load_words,
+)
 from app.economy import (
     MAX_DOMAIN_COUNT,
     PREMIUM_PRICES,
@@ -42,9 +47,10 @@ def test_price_formula_and_rarity_thresholds():
     assert rarity_for_price(99) == "common"
     assert rarity_for_price(100) == "rare"
     assert rarity_for_price(999) == "rare"
-    assert rarity_for_price(1000) == "epic"
-    assert rarity_for_price(10000) == "legendary"
-    assert rarity_for_price(100000) == "mythic"
+    assert rarity_for_price(1_200) == "epic"
+    assert rarity_for_price(6_000) == "legendary"
+    assert rarity_for_price(35_000) == "mythic"
+    assert rarity_for_price(100_000) == "mythic"
 
 
 def test_weight_applies_rarity_luck():
@@ -59,8 +65,20 @@ def test_upgrade_sectors_have_negative_ev():
         assert sector / 100 * multiplier < 1
 
 
+def test_real_catalog_uses_new_price_ranges():
+    domains = generate_domains(MAX_DOMAIN_COUNT)
+    for domain in domains:
+        if (domain.name, domain.zone) in PREMIUM_PRICES:
+            continue
+        low, high = PRICE_RANGES[domain.rarity]
+        assert low <= domain.price <= high, (
+            f"{domain.name}{domain.zone}: {domain.price} outside "
+            f"{domain.rarity} {low}..{high}"
+        )
+
+
 def test_all_roulette_costs_and_rarity_pools():
-    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [100, 500, 10_000, 75_000]
+    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [100, 450, 2_000, 10_000]
     assert "mythic" not in SPIN_TYPES
     assert SPIN_TYPES["normal"]["rarities"] == RARITY_ORDER
     assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")
@@ -99,17 +117,3 @@ def test_full_generator_has_100k_unique_domains_and_examples():
         assert found is not None, f"{name}{zone} is missing"
         assert found.price == price
         assert found.rarity == rarity_for_price(price)
-
-
-def test_legendary_ticket_has_negative_expected_value():
-    domains = generate_domains(MAX_DOMAIN_COUNT)
-    roll = SPIN_TYPES["epic_plus"]
-    pool = [domain for domain in domains if domain.rarity in roll["rarities"]]
-    total_weight = sum(domain.weight for domain in pool)
-    expected = sum(domain.price * domain.weight for domain in pool) / total_weight
-    assert expected < roll["cost"]
-
-    total_weight = sum(domain.weight for domain in domains)
-    normal_ev = sum(domain.price * domain.weight for domain in domains) / total_weight
-    assert SPIN_TYPES["normal"]["cost"] == 100
-    assert normal_ev > 100

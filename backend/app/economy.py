@@ -40,16 +40,16 @@ PATTERN_FACTOR: dict[str, float] = {
 }
 
 RARITY_META: dict[Rarity, dict] = {
-    "common": {"title": "Common", "min_price": 1, "max_price": 99, "color": "#8C98A8"},
-    "rare": {"title": "Rare", "min_price": 100, "max_price": 999, "color": "#4D9BFF"},
-    "epic": {"title": "Epic", "min_price": 1_000, "max_price": 9_999, "color": "#A879F0"},
+    "common": {"title": "Common", "min_price": 40, "max_price": 90, "color": "#8C98A8"},
+    "rare": {"title": "Rare", "min_price": 250, "max_price": 900, "color": "#4D9BFF"},
+    "epic": {"title": "Epic", "min_price": 1_200, "max_price": 4_500, "color": "#A879F0"},
     "legendary": {
         "title": "Legendary",
-        "min_price": 10_000,
-        "max_price": 99_999,
+        "min_price": 6_000,
+        "max_price": 25_000,
         "color": "#F0A64B",
     },
-    "mythic": {"title": "Mythic", "min_price": 100_000, "max_price": None, "color": "#F05D6E"},
+    "mythic": {"title": "Mythic", "min_price": 35_000, "max_price": None, "color": "#F05D6E"},
 }
 
 
@@ -70,35 +70,35 @@ SPIN_TYPES: dict[str, SpinType] = {
         "short_title": "Все",
         "cost": 100,
         "rarities": RARITY_ORDER,
-        "min_price": 1,
+        "min_price": 40,
         "description": "Все редкости · 100 монет",
     },
     "uncommon_plus": {
         "key": "uncommon_plus",
         "title": "Редкая+",
         "short_title": "Rare+",
-        "cost": 500,
+        "cost": 450,
         "rarities": ("rare", "epic", "legendary", "mythic"),
-        "min_price": 100,
-        "description": "Rare и выше · 500 монет",
+        "min_price": 250,
+        "description": "Rare и выше · 450 монет",
     },
     "rare_plus": {
         "key": "rare_plus",
         "title": "Эпическая+",
         "short_title": "Epic+",
-        "cost": 10_000,
+        "cost": 2_000,
         "rarities": ("epic", "legendary", "mythic"),
-        "min_price": 1_000,
-        "description": "Epic и выше · 10 000 монет",
+        "min_price": 1_200,
+        "description": "Epic и выше · 2 000 монет",
     },
     "epic_plus": {
         "key": "epic_plus",
         "title": "Легендарная+",
         "short_title": "Legendary+",
-        "cost": 75_000,
+        "cost": 10_000,
         "rarities": ("legendary", "mythic"),
-        "min_price": 10_000,
-        "description": "Legendary и Mythic · 75 000 монет",
+        "min_price": 6_000,
+        "description": "Legendary и Mythic · 10 000 монет",
     },
 }
 
@@ -178,11 +178,11 @@ def weight_for(price: int, rarity: Rarity) -> float:
 def rarity_for_price(price: int) -> Rarity:
     if price < 100:
         return "common"
-    if price < 1_000:
+    if price < 1_200:
         return "rare"
-    if price < 10_000:
+    if price < 6_000:
         return "epic"
-    if price < 100_000:
+    if price < 35_000:
         return "legendary"
     return "mythic"
 

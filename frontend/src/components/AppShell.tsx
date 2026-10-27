@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Backdrop } from '@/components/Backdrop';
 import { BottomNav } from '@/components/BottomNav';
 import { TopBar } from '@/components/TopBar';
@@ -32,18 +32,15 @@ export function AppShell() {
               : undefined
           }
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, scale: 0.995 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.998 }}
-              transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className={cn(isEarn && 'h-full min-h-0')}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0.82 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className={cn(isEarn && 'h-full min-h-0')}
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
       <BottomNav />

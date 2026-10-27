@@ -166,7 +166,7 @@ export function UpgraderPage() {
       setArrowAngle(1440 + finalAngle);
       setArrowMoving(true);
       // The spin happens inside the tab, then the result appears in place.
-      await new Promise((resolve) => window.setTimeout(resolve, 3400));
+      await new Promise((resolve) => window.setTimeout(resolve, 3900));
       setArrowMoving(false);
       setResult(response);
       if (response.success && response.domain?.rarity === 'mythic') {
@@ -586,7 +586,9 @@ function ChanceWheel({
             transform: `rotate(${arrowAngle}deg)`,
             transformOrigin: '120px 120px',
             willChange: moving ? 'transform' : 'auto',
-            transition: moving ? 'transform 3s cubic-bezier(.16,1,.3,1)' : 'none',
+            transition: moving
+              ? 'transform 3.6s cubic-bezier(.42,.02,.12,1)'
+              : 'none',
           }}
         >
           <path d="M114 2 L126 2 L120 16 Z" fill={color} />

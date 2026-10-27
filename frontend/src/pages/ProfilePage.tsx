@@ -68,12 +68,7 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-4">
-      <motion.section
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="rounded-2xl border border-white/[0.07] bg-ink-800 p-4 shadow-soft"
-      >
+      <section className="rounded-2xl border border-white/[0.07] bg-ink-800 p-4 shadow-soft">
         <div className="flex items-start gap-3.5">
           <Avatar src={user.avatar_url} name={user.display_name} size={68} />
           <div className="min-w-0 flex-1 pt-0.5">
@@ -143,7 +138,7 @@ export function ProfilePage() {
             accent="#F2A54A"
           />
         </div>
-      </motion.section>
+      </section>
 
       <button
         type="button"

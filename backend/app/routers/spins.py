@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload
 
 from app.config import settings
 from app.database import get_db
@@ -180,9 +181,13 @@ async def keep_auto_sold_spin(
     if locked_user is None:
         raise HTTPException(status_code=401, detail="Пользователь не найден")
 
+    # Spin has joined relationships (domain/user). Loading them here makes
+    # PostgreSQL reject FOR UPDATE because of the nullable outer join, so the
+    # keep operation deliberately loads only the spin row.
     spin_row = await db.scalar(
         select(Spin)
         .where(Spin.id == spin_id, Spin.user_id == user.id)
+        .options(noload(Spin.domain), noload(Spin.user))
         .with_for_update()
         .execution_options(populate_existing=True)
     )
