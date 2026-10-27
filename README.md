@@ -131,6 +131,8 @@ Codespaces подходит для теста, но не для постоянн
 
 Коротко: на VPS нужны только Docker, Git и reverse-proxy. Python, Node.js, PostgreSQL и Redis работают внутри Docker Compose. Наружу открываются только 22/80/443.
 
+Для чистого Debian 13 с root-доступом есть автоматический скрипт `deploy/bootstrap-root.sh` — см. раздел «Быстрый root-скрипт» в инструкции.
+
 ---
 
 ## Каталог доменов
