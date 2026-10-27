@@ -15,6 +15,7 @@ from pathlib import Path
 
 from app.economy import (
     MAX_DOMAIN_COUNT,
+    POPULAR_PRICES,
     PREMIUM_PRICES,
     READABILITY_FACTOR,
     ZONES,
@@ -268,11 +269,8 @@ PRICE_RANGES: dict[str, tuple[int, int]] = {
 def _game_price(full_name: str, rarity: str) -> int:
     low, high = PRICE_RANGES[rarity]
     rng = random.Random(f"{SEED}:{full_name}:game-price:{rarity}")
-    if rarity == "legendary":
-        # Legendary+ must land near 140% RTP: bias the tier toward its lower
-        # half while keeping the full 6k..25k range available.
-        return low + int((high - low) * (rng.random() ** 1.5))
-    return rng.randint(low, high)
+    power = {"rare": 1.6, "epic": 2.2, "legendary": 2.8}.get(rarity, 1.0)
+    return low + int((high - low) * (rng.random() ** power))
 
 
 @lru_cache(maxsize=1)
@@ -298,7 +296,7 @@ def generate_domains(target: int = MAX_DOMAIN_COUNT) -> list[GeneratedDomain]:
             name, zone = _split_zone(full_name)
         except ValueError:
             continue
-        explicit = PREMIUM_PRICES.get((name, zone))
+        explicit = POPULAR_PRICES.get((name, zone)) or PREMIUM_PRICES.get((name, zone))
         price = (
             explicit
             if explicit is not None

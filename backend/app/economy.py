@@ -72,11 +72,11 @@ SPIN_TYPES: dict[str, SpinType] = {
         "cost": 100,
         "rarities": RARITY_ORDER,
         "rarity_chances": {
-            "common": 91.23,
-            "rare": 8.10,
-            "epic": 0.60,
-            "legendary": 0.06,
-            "mythic": 0.01,
+            "common": 92.365,
+            "rare": 7.20,
+            "epic": 0.40,
+            "legendary": 0.03,
+            "mythic": 0.005,
         },
         "min_price": 40,
         "description": "Все редкости · 100 монет",
@@ -88,9 +88,9 @@ SPIN_TYPES: dict[str, SpinType] = {
         "cost": 450,
         "rarities": ("rare", "epic", "legendary", "mythic"),
         "rarity_chances": {
-            "rare": 98.24,
-            "epic": 1.70,
-            "legendary": 0.05,
+            "rare": 99.90,
+            "epic": 0.05,
+            "legendary": 0.04,
             "mythic": 0.01,
         },
         "min_price": 250,
@@ -103,9 +103,9 @@ SPIN_TYPES: dict[str, SpinType] = {
         "cost": 2_000,
         "rarities": ("epic", "legendary", "mythic"),
         "rarity_chances": {
-            "epic": 99.95,
-            "legendary": 0.04,
-            "mythic": 0.01,
+            "epic": 99.80,
+            "legendary": 0.15,
+            "mythic": 0.05,
         },
         "min_price": 1_200,
         "description": "Epic и выше · 2 000 монет",
@@ -117,8 +117,8 @@ SPIN_TYPES: dict[str, SpinType] = {
         "cost": 10_000,
         "rarities": ("legendary", "mythic"),
         "rarity_chances": {
-            "legendary": 99.50,
-            "mythic": 0.50,
+            "legendary": 99.60,
+            "mythic": 0.40,
         },
         "min_price": 6_000,
         "description": "Legendary и Mythic · 10 000 монет",
@@ -148,6 +148,35 @@ MAX_DOMAIN_COUNT = 100_500
 PREMIUM_PRICES: dict[tuple[str, str], int] = {
     ("microsoft", ".com"): 1_000_000,
     ("google", ".com"): 1_100_000,
+}
+
+# Real, recognisable names are deliberately more expensive than the rest of
+# the Mythic pool. These are game prices, not market valuations.
+POPULAR_PRICES: dict[tuple[str, str], int] = {
+    ("cars", ".com"): 100_000_000,
+    ("google", ".com"): 10_000_000,
+    ("youtube", ".com"): 8_000_000,
+    ("facebook", ".com"): 7_000_000,
+    ("amazon", ".com"): 6_000_000,
+    ("instagram", ".com"): 5_500_000,
+    ("twitter", ".com"): 5_000_000,
+    ("x", ".com"): 4_800_000,
+    ("microsoft", ".com"): 4_500_000,
+    ("apple", ".com"): 4_200_000,
+    ("tiktok", ".com"): 3_800_000,
+    ("netflix", ".com"): 3_500_000,
+    ("reddit", ".com"): 3_000_000,
+    ("chatgpt", ".com"): 2_800_000,
+    ("openai", ".com"): 2_500_000,
+    ("linkedin", ".com"): 2_200_000,
+    ("pinterest", ".com"): 2_000_000,
+    ("ebay", ".com"): 1_800_000,
+    ("spotify", ".com"): 1_600_000,
+    ("github", ".com"): 1_500_000,
+    ("yahoo", ".com"): 1_300_000,
+    ("bing", ".com"): 1_200_000,
+    ("wordpress", ".com"): 1_100_000,
+    ("stackoverflow", ".com"): 1_000_000,
 }
 
 

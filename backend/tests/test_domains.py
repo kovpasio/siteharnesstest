@@ -12,7 +12,7 @@ from app.domain_generator import (
 )
 from app.economy import (
     MAX_DOMAIN_COUNT,
-    PREMIUM_PRICES,
+    POPULAR_PRICES,
     RARITY_ORDER,
     SPIN_TYPES,
     UPGRADE_SECTORS,
@@ -68,7 +68,7 @@ def test_upgrade_sectors_have_negative_ev():
 def test_real_catalog_uses_new_price_ranges():
     domains = generate_domains(MAX_DOMAIN_COUNT)
     for domain in domains:
-        if (domain.name, domain.zone) in PREMIUM_PRICES:
+        if (domain.name, domain.zone) in POPULAR_PRICES:
             continue
         low, high = PRICE_RANGES[domain.rarity]
         assert low <= domain.price <= high, (
@@ -96,7 +96,7 @@ def test_real_domain_catalog_has_requested_sizes_and_brands():
     assert all(name.count(".") == 1 for name in names)
 
 
-def test_each_roulette_has_about_140_percent_rtp():
+def test_each_roulette_has_about_115_percent_rtp():
     domains = generate_domains(MAX_DOMAIN_COUNT)
     averages = {
         rarity: sum(domain.price for domain in domains if domain.rarity == rarity)
@@ -108,7 +108,7 @@ def test_each_roulette_has_about_140_percent_rtp():
             roll["rarity_chances"][rarity] / 100 * averages[rarity]
             for rarity in roll["rarities"]
         )
-        assert 130 <= expected / roll["cost"] * 100 <= 150, key
+        assert 110 <= expected / roll["cost"] * 100 <= 120, key
 
 
 def test_full_generator_has_100k_unique_domains_and_examples():
@@ -127,11 +127,19 @@ def test_full_generator_has_100k_unique_domains_and_examples():
     common = [domain for domain in domains if domain.rarity == "common"]
     assert sum(domain.price for domain in common) / len(common) > 35
     assert sum(1 for domain in common if domain.price > 80) / len(common) > 0.1
-    for (name, zone), price in PREMIUM_PRICES.items():
+    for (name, zone), price in POPULAR_PRICES.items():
         found = next(
             (domain for domain in domains if domain.name == name and domain.zone == zone),
             None,
         )
         assert found is not None, f"{name}{zone} is missing"
         assert found.price == price
-        assert found.rarity == rarity_for_price(price)
+        assert found.rarity == "mythic"
+
+    top = max(domains, key=lambda domain: domain.price)
+    assert f"{top.name}{top.zone}" == "cars.com"
+    assert top.price == 100_000_000
+    google = next(
+        domain for domain in domains if domain.name == "google" and domain.zone == ".com"
+    )
+    assert google.price == 10_000_000
