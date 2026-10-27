@@ -58,6 +58,7 @@ export function RoulettePage() {
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const tickTimers = useRef<number[]>([]);
+  const finishTimer = useRef<number | null>(null);
   const lock = useRef(false);
 
   const activeRoll = meta?.roll_types.find((item) => item.key === activeType) ?? null;
@@ -65,6 +66,13 @@ export function RoulettePage() {
   const clearTicks = useCallback(() => {
     tickTimers.current.forEach((timer) => window.clearTimeout(timer));
     tickTimers.current = [];
+  }, []);
+
+  const clearFinishTimer = useCallback(() => {
+    if (finishTimer.current !== null) {
+      window.clearTimeout(finishTimer.current);
+      finishTimer.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -80,8 +88,9 @@ export function RoulettePage() {
     return () => {
       mounted = false;
       clearTicks();
+      clearFinishTimer();
     };
-  }, [clearTicks, toast]);
+  }, [clearFinishTimer, clearTicks, toast]);
 
   const loadFeed = useCallback(
     async (rollType: RollType) => {
@@ -119,21 +128,30 @@ export function RoulettePage() {
     }
   }, [clearTicks, playTick]);
 
-  const finishSpin = useCallback(() => {
-    if (!lock.current || !result) return;
-    lock.current = false;
-    setSpinning(false);
-    setRevealed(true);
-    playReveal(result.rarity);
-    hapticNotify(result.rarity === 'mythic' || result.rarity === 'legendary' ? 'success' : 'warning');
-    if (result.auto_sold) {
-      toast(
-        `Автопродано: ${result.domain.full_name} +${formatNumber(result.auto_sold_price ?? result.price)} D`,
-        'success',
+  const finishSpin = useCallback(
+    (spinResult: SpinResult) => {
+      if (!lock.current) return;
+      lock.current = false;
+      clearFinishTimer();
+      setSpinning(false);
+      setRevealed(true);
+      applyBalance(spinResult.balance);
+      playReveal(spinResult.rarity);
+      hapticNotify(
+        spinResult.rarity === 'mythic' || spinResult.rarity === 'legendary'
+          ? 'success'
+          : 'warning',
       );
-    }
-    void refresh().catch(() => undefined);
-  }, [playReveal, refresh, result, toast]);
+      if (spinResult.auto_sold) {
+        toast(
+          `Автопродано: ${spinResult.domain.full_name} +${formatNumber(spinResult.auto_sold_price ?? spinResult.price)} D`,
+          'success',
+        );
+      }
+      void refresh().catch(() => undefined);
+    },
+    [applyBalance, clearFinishTimer, playReveal, refresh, toast],
+  );
 
   async function spin() {
     if (!activeRoll || spinning || lock.current) return;
@@ -150,7 +168,6 @@ export function RoulettePage() {
 
     try {
       const response = await api.spin(activeType);
-      applyBalance(response.balance);
 
       const pool = feed.length ? feed : [response.domain];
       const nextRibbon = fillRibbon(pool);
@@ -164,10 +181,15 @@ export function RoulettePage() {
       setAnimateTarget(target);
       setRibbonId((value) => value + 1);
       scheduleTicks();
-      void refresh().catch(() => undefined);
+      clearFinishTimer();
+      finishTimer.current = window.setTimeout(
+        () => finishSpin(response),
+        SPIN_DURATION * 1000 + 140,
+      );
     } catch (error) {
       lock.current = false;
       setSpinning(false);
+      clearFinishTimer();
       toast(error instanceof Error ? error.message : 'Спин не удался', 'error');
     }
   }
@@ -268,7 +290,6 @@ export function RoulettePage() {
               initial={{ x: 0 }}
               animate={{ x: animateTarget }}
               transition={{ duration: SPIN_DURATION, ease: [0.12, 0.72, 0.12, 1] }}
-              onAnimationComplete={finishSpin}
               className="flex w-max gap-[9px] will-change-transform"
             >
               {ribbon.map((domain, index) => (

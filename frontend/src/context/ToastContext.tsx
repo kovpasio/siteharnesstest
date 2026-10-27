@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] mx-auto flex max-w-md flex-col gap-2 px-4 pt-[calc(env(safe-area-inset-top)+12px)]">
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] mx-auto flex max-w-md flex-col gap-2 px-4 pt-[calc(env(safe-area-inset-top)+76px)]">
         <AnimatePresence initial={false}>
           {items.map((item) => {
             const Icon = ICONS[item.tone];

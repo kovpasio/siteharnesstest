@@ -28,7 +28,18 @@ const FALLBACK_SECTORS: UpgradeSector[] = [
   { sector: 75, multiplier: 1.2, ev: 0.9 },
 ];
 
-const SECTOR_COLORS = ['#4D9BFF', '#B07CFF', '#F2A54A', '#F06473'];
+const SECTOR_COLORS = ['#4D9BFF', '#B07CFF', '#F2A54A', '#43D6C5'];
+
+function landingAngle(chance: number, success: boolean): number {
+  const filled = Math.min(358, Math.max(2, chance * 3.6));
+  if (success) {
+    const pad = Math.min(5, filled / 4);
+    return pad + Math.random() * Math.max(1, filled - pad * 2);
+  }
+  const free = 360 - filled;
+  const pad = Math.min(5, free / 4);
+  return filled + pad + Math.random() * Math.max(1, free - pad * 2);
+}
 
 export function UpgraderPage() {
   const { refresh } = useAuth();
@@ -40,6 +51,7 @@ export function UpgraderPage() {
   const [sectorIndex, setSectorIndex] = useState(2);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [forging, setForging] = useState(false);
+  const [arrowAngle, setArrowAngle] = useState(0);
   const [result, setResult] = useState<UpgradeResult | null>(null);
 
   const sectors = meta?.upgrade_sectors?.length ? meta.upgrade_sectors : FALLBACK_SECTORS;
@@ -96,18 +108,21 @@ export function UpgraderPage() {
     if (!selectedItems.length || forging) return;
     setConfirmOpen(false);
     setForging(true);
+    setArrowAngle(0);
     setResult(null);
     hapticImpact('medium');
-    const started = Date.now();
     try {
       const response = await api.upgrade(
         selectedItems.map((item) => item.id),
         sector.sector,
       );
-      const remaining = 2600 - (Date.now() - started);
-      if (remaining > 0) await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      const finalAngle = landingAngle(sector.sector, response.success);
+      setArrowAngle(1440 + finalAngle);
+      // 2.2s spin + a short pause so the landed arrow is readable.
+      await new Promise((resolve) => window.setTimeout(resolve, 3200));
       setResult(response);
       setForging(false);
+      setArrowAngle(0);
       setSelectedIds(new Set());
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
       await loadInventory();
@@ -119,6 +134,7 @@ export function UpgraderPage() {
       void refresh().catch(() => undefined);
     } catch (error) {
       setForging(false);
+      setArrowAngle(0);
       toast(error instanceof Error ? error.message : 'Не удалось выполнить апгрейд', 'error');
     }
   }
@@ -158,10 +174,12 @@ export function UpgraderPage() {
 
             <div className="relative flex justify-center py-1">
               <ChanceWheel
-                sectors={sectors}
-                active={sectorIndex}
+                percent={sector.sector}
+                multiplier={sector.multiplier}
                 chanceRange={chanceRange}
-                forging={false}
+                color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
+                arrowAngle={0}
+                moving={false}
               />
             </div>
 
@@ -179,10 +197,16 @@ export function UpgraderPage() {
                     }}
                     className={cn(
                       'rounded-lg border px-1 py-2 text-center transition',
-                      active
-                        ? 'border-gold/50 bg-gold/[0.12]'
-                        : 'border-white/[0.06] bg-white/[0.025] hover:border-white/[0.14]',
+                      active ? '' : 'border-white/[0.06] bg-white/[0.025] hover:border-white/[0.14]',
                     )}
+                    style={
+                      active
+                        ? {
+                            borderColor: `${SECTOR_COLORS[index]}80`,
+                            background: `${SECTOR_COLORS[index]}1A`,
+                          }
+                        : undefined
+                    }
                   >
                     <div
                       className="font-display text-[12px] font-bold"
@@ -350,9 +374,11 @@ export function UpgraderPage() {
         {forging && (
           <ForgeOverlay
             items={selectedItems}
-            sectors={sectors}
-            active={sectorIndex}
+            percent={sector.sector}
+            multiplier={sector.multiplier}
+            color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
             chanceRange={chanceRange}
+            arrowAngle={arrowAngle}
           />
         )}
       </AnimatePresence>
@@ -449,97 +475,96 @@ function polar(cx: number, cy: number, radius: number, angle: number) {
   return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) };
 }
 
-function arcPath(cx: number, cy: number, radius: number, start: number, end: number) {
-  const from = polar(cx, cy, radius, start);
-  const to = polar(cx, cy, radius, end);
-  const large = end - start > 180 ? 1 : 0;
-  return `M ${from.x} ${from.y} A ${radius} ${radius} 0 ${large} 1 ${to.x} ${to.y}`;
-}
-
 function ChanceWheel({
-  sectors,
-  active,
+  percent,
+  multiplier,
   chanceRange,
-  forging,
+  color,
+  arrowAngle,
+  moving,
   large = false,
 }: {
-  sectors: UpgradeSector[];
-  active: number;
+  percent: number;
+  multiplier: number;
   chanceRange: [number, number] | number[];
-  forging: boolean;
+  color: string;
+  arrowAngle: number;
+  moving: boolean;
   large?: boolean;
 }) {
   const size = large ? 250 : 218;
   const center = 120;
   const radius = 88;
-  const segment = 360 / sectors.length;
-  const selected = sectors[active];
+  const circumference = 2 * Math.PI * radius;
+  const filled = circumference * Math.min(100, Math.max(0, percent)) / 100;
+
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <div className="absolute inset-6 rounded-full bg-accent/[0.08] blur-2xl" />
+      <div
+        className="absolute inset-6 rounded-full blur-2xl"
+        style={{ background: `${color}1F` }}
+      />
       <svg viewBox="0 0 240 240" className="relative h-full w-full overflow-visible">
-        <motion.g
-          animate={{ rotate: forging ? 360 : 0 }}
-          transition={forging ? { duration: 1.15, repeat: Infinity, ease: 'linear' } : { duration: 0.4 }}
-          style={{ originX: '50%', originY: '50%' }}
-        >
-          {Array.from({ length: 48 }).map((_, index) => {
-            const angle = index * 7.5;
-            const inner = polar(center, center, radius + 15, angle);
-            const outer = polar(center, center, radius + (index % 4 === 0 ? 23 : 20), angle);
-            return (
-              <line
-                key={index}
-                x1={inner.x}
-                y1={inner.y}
-                x2={outer.x}
-                y2={outer.y}
-                stroke={index % 4 === 0 ? '#8DC2FF' : '#41536C'}
-                strokeWidth={index % 4 === 0 ? 1.4 : 1}
-                strokeLinecap="round"
-                opacity={index % 4 === 0 ? 0.75 : 0.45}
-              />
-            );
-          })}
-        </motion.g>
+        <circle cx={center} cy={center} r={104} fill="none" stroke="#273A52" strokeWidth="1" opacity=".7" />
+        <circle cx={center} cy={center} r={radius} fill="none" stroke="#24364E" strokeWidth="16" />
 
-        {sectors.map((item, index) => {
-          const start = index * segment + 4;
-          const end = (index + 1) * segment - 4;
-          const isActive = index === active;
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="16"
+          strokeLinecap="round"
+          strokeDasharray={`${filled} ${circumference - filled}`}
+          transform={`rotate(-90 ${center} ${center})`}
+          style={{ filter: `drop-shadow(0 0 7px ${color}88)` }}
+        />
+
+        {Array.from({ length: 48 }).map((_, index) => {
+          const angle = index * 7.5;
+          const inner = polar(center, center, 68, angle);
+          const outer = polar(center, center, index % 4 === 0 ? 74 : 72, angle);
           return (
-            <path
-              key={item.sector}
-              d={arcPath(center, center, radius, start, end)}
-              fill="none"
-              stroke={SECTOR_COLORS[index % SECTOR_COLORS.length]}
-              strokeWidth={isActive ? 20 : 14}
+            <line
+              key={index}
+              x1={inner.x}
+              y1={inner.y}
+              x2={outer.x}
+              y2={outer.y}
+              stroke={index % 4 === 0 ? '#7E98B8' : '#41536C'}
+              strokeWidth={index % 4 === 0 ? 1.4 : 1}
               strokeLinecap="round"
-              opacity={isActive ? 1 : 0.42}
-              style={isActive ? { filter: `drop-shadow(0 0 8px ${SECTOR_COLORS[index]}66)` } : undefined}
+              opacity={index % 4 === 0 ? 0.65 : 0.4}
             />
           );
         })}
 
-        <circle cx={center} cy={center} r={62} fill="#0E1724" stroke="#2A3A52" strokeWidth="1" />
+        <circle cx={center} cy={center} r={59} fill="#0E1724" stroke="#2A3A52" strokeWidth="1" />
         <circle
           cx={center}
           cy={center}
-          r={53}
+          r={50}
           fill="none"
-          stroke={SECTOR_COLORS[active % SECTOR_COLORS.length]}
+          stroke={color}
           strokeWidth="1"
-          opacity=".35"
+          opacity=".38"
         />
 
-        <g transform={`rotate(${active * segment + segment / 2} 120 120)`}>
-          <path d="M120 6 L126 18 L114 18 Z" fill="#F2A54A" />
+        <g
+          style={{
+            transform: `rotate(${arrowAngle}deg)`,
+            transformOrigin: '120px 120px',
+            transition: moving ? 'transform 2.2s cubic-bezier(.12,.72,.12,1)' : 'none',
+          }}
+        >
+          <path d="M114 2 L126 2 L120 16 Z" fill={color} />
           <line
             x1="120"
-            y1="18"
+            y1="16"
             x2="120"
-            y2="34"
-            stroke="#F2A54A"
+            y2="25"
+            stroke={color}
             strokeWidth="1.5"
             strokeLinecap="round"
           />
@@ -551,14 +576,17 @@ function ChanceWheel({
           chance
         </div>
         <div className="mt-1 font-display text-[34px] font-bold leading-none tracking-tight text-paper">
-          {forging ? '···' : `${selected.sector}%`}
+          {moving ? '···' : `${percent}%`}
         </div>
-        <div className="mt-1.5 rounded-full border border-gold/30 bg-gold/[0.08] px-2 py-0.5 font-display text-[10px] font-semibold text-gold">
-          ×{selected.multiplier}
+        <div
+          className="mt-1.5 rounded-full border px-2 py-0.5 font-display text-[10px] font-semibold"
+          style={{ borderColor: `${color}55`, background: `${color}14`, color }}
+        >
+          ×{multiplier}
         </div>
         <div className="mt-2 text-[7px] text-muted/60">
-          {forging
-            ? 'крутим шанс'
+          {moving
+            ? 'стрелка решает'
             : `${chanceRange[0].toFixed(2)}–${chanceRange[1].toFixed(2)}%`}
         </div>
       </div>
@@ -568,16 +596,19 @@ function ChanceWheel({
 
 function ForgeOverlay({
   items,
-  sectors,
-  active,
+  percent,
+  multiplier,
+  color,
   chanceRange,
+  arrowAngle,
 }: {
   items: InventoryItem[];
-  sectors: UpgradeSector[];
-  active: number;
+  percent: number;
+  multiplier: number;
+  color: string;
   chanceRange: [number, number] | number[];
+  arrowAngle: number;
 }) {
-  const sector = sectors[active];
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -585,11 +616,15 @@ function ForgeOverlay({
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-[#080E17]/88 px-6 backdrop-blur-md"
     >
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-[80px]" />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[80px]"
+        style={{ background: `${color}26` }}
+      />
       <motion.div
         initial={{ scale: 0.96, y: 8 }}
         animate={{ scale: 1, y: 0 }}
-        className="relative w-full max-w-[330px] rounded-2xl border border-accent/25 bg-ink-800 p-5 text-center shadow-card"
+        className="relative w-full max-w-[330px] rounded-2xl border bg-ink-800 p-5 text-center shadow-card"
+        style={{ borderColor: `${color}55` }}
       >
         <div className="text-[8px] font-bold uppercase tracking-[0.24em] text-gold">
           domain forge
@@ -597,16 +632,18 @@ function ForgeOverlay({
         <div className="mt-1 font-display text-lg font-semibold text-paper">Куём апгрейд…</div>
         <div className="mt-2 flex justify-center">
           <ChanceWheel
-            sectors={sectors}
-            active={active}
+            percent={percent}
+            multiplier={multiplier}
             chanceRange={chanceRange}
-            forging
+            color={color}
+            arrowAngle={arrowAngle}
+            moving
             large
           />
         </div>
         <div className="mt-1 flex items-center justify-center gap-1.5 text-[9px] text-muted">
-          <Sparkles size={11} className="text-teal" />
-          {items.length} доменов · {sector.sector}% шанс
+          <Sparkles size={11} style={{ color }} />
+          {items.length} доменов · {percent}% шанс
         </div>
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]">
           <motion.div
