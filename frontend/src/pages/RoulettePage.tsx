@@ -14,6 +14,7 @@ import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useSound } from '@/context/SoundContext';
+import { MythicDropOverlay } from '@/components/MythicDropOverlay';
 import { RarityBadge } from '@/components/RarityBadge';
 import { SectionTitle } from '@/components/SectionTitle';
 import type { Domain, Meta, RollType, SpinResult } from '@/types';
@@ -53,6 +54,8 @@ export function RoulettePage() {
   const [animateTarget, setAnimateTarget] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<SpinResult | null>(null);
+  const [mythicDrop, setMythicDrop] = useState<Domain | null>(null);
+  const closeMythicDrop = useCallback(() => setMythicDrop(null), []);
   const [revealed, setRevealed] = useState(false);
   const [loadingFeed, setLoadingFeed] = useState(true);
 
@@ -135,6 +138,9 @@ export function RoulettePage() {
       clearFinishTimer();
       setSpinning(false);
       setRevealed(true);
+      if (spinResult.rarity === 'mythic') {
+        setMythicDrop(spinResult.domain);
+      }
       applyBalance(spinResult.balance);
       playReveal(spinResult.rarity);
       hapticNotify(
@@ -165,6 +171,7 @@ export function RoulettePage() {
     setSpinning(true);
     setRevealed(false);
     setResult(null);
+    setMythicDrop(null);
     hapticImpact('light');
 
     try {
@@ -420,6 +427,12 @@ export function RoulettePage() {
               </button>
             </div>
           </motion.section>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mythicDrop && (
+          <MythicDropOverlay domain={mythicDrop} onClose={closeMythicDrop} />
         )}
       </AnimatePresence>
 

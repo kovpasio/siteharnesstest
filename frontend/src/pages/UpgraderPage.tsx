@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Check,
@@ -15,9 +15,11 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useSound } from '@/context/SoundContext';
 import { EmptyState } from '@/components/EmptyState';
+import { MythicDropOverlay } from '@/components/MythicDropOverlay';
 import { PageTitle } from '@/components/PageTitle';
 import { RarityBadge } from '@/components/RarityBadge';
 import type {
+  Domain,
   InventoryItem,
   Meta,
   UpgradePreview,
@@ -60,6 +62,8 @@ export function UpgraderPage() {
   const [arrowAngle, setArrowAngle] = useState(0);
   const [preview, setPreview] = useState<UpgradePreview | null>(null);
   const [result, setResult] = useState<UpgradeResult | null>(null);
+  const [mythicDrop, setMythicDrop] = useState<Domain | null>(null);
+  const closeMythicDrop = useCallback(() => setMythicDrop(null), []);
 
   const sectors = meta?.upgrade_sectors?.length ? meta.upgrade_sectors : FALLBACK_SECTORS;
   const sector = sectors[Math.min(sectorIndex, sectors.length - 1)];
@@ -150,6 +154,7 @@ export function UpgraderPage() {
     setArrowMoving(false);
     setArrowAngle(0);
     setResult(null);
+    setMythicDrop(null);
     hapticImpact('medium');
     try {
       const response = await api.upgrade(
@@ -164,6 +169,9 @@ export function UpgraderPage() {
       await new Promise((resolve) => window.setTimeout(resolve, 3000));
       setArrowMoving(false);
       setResult(response);
+      if (response.success && response.domain?.rarity === 'mythic') {
+        setMythicDrop(response.domain);
+      }
       setForging(false);
       setSelectedIds(new Set());
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
@@ -192,6 +200,12 @@ export function UpgraderPage() {
 
       <AnimatePresence>
         {result && <ResultCard result={result} onClose={() => setResult(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {mythicDrop && (
+          <MythicDropOverlay domain={mythicDrop} onClose={closeMythicDrop} />
+        )}
       </AnimatePresence>
 
       <section className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-accent/50 via-gold/25 to-teal/40 p-px shadow-neon-lime">

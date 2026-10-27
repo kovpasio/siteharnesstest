@@ -31,7 +31,7 @@ const GRANT_RARITIES: Array<{ value: Rarity | undefined; label: string }> = [
 ];
 
 export function AdminPage() {
-  const { me } = useAuth();
+  const { me, applyBalance } = useAuth();
   const { toast } = useToast();
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -88,12 +88,15 @@ export function AdminPage() {
     try {
       const updated = await api.adminBalance(user.id, sign * delta);
       setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      if (updated.id === me?.user.id) {
+        applyBalance(updated.balance);
+      }
       hapticNotify('success');
       toast(
         `${sign > 0 ? 'Выдано' : 'Списано'} ${formatNumber(delta)} D · ${updated.display_name}`,
         'success',
       );
-      void load();
+      await load();
     } catch (error) {
       toast(error instanceof Error ? error.message : 'Не удалось изменить баланс', 'error');
     } finally {

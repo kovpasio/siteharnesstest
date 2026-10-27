@@ -161,7 +161,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     assert meta.status_code == 200
     meta_data = meta.json()
     assert meta_data["total_domains"] == 5
-    assert [item["cost"] for item in meta_data["roll_types"]] == [100, 1_700, 18_500, 85_000]
+    assert [item["cost"] for item in meta_data["roll_types"]] == [100, 500, 10_000, 75_000]
     assert [item["key"] for item in meta_data["roll_types"]] == [
         "normal",
         "uncommon_plus",

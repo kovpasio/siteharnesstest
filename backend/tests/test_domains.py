@@ -60,7 +60,7 @@ def test_upgrade_sectors_have_negative_ev():
 
 
 def test_all_roulette_costs_and_rarity_pools():
-    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [100, 1_700, 18_500, 85_000]
+    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [100, 500, 10_000, 75_000]
     assert "mythic" not in SPIN_TYPES
     assert SPIN_TYPES["normal"]["rarities"] == RARITY_ORDER
     assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")
@@ -90,18 +90,13 @@ def test_full_generator_has_100k_unique_domains_and_examples():
         assert found.rarity == rarity_for_price(price)
 
 
-def test_premium_roulettes_have_negative_expected_value():
+def test_legendary_ticket_has_negative_expected_value():
     domains = generate_domains(MAX_DOMAIN_COUNT)
-    for key in ("uncommon_plus", "rare_plus", "epic_plus"):
-        roll = SPIN_TYPES[key]
-        pool = [domain for domain in domains if domain.rarity in roll["rarities"]]
-        total_weight = sum(domain.weight for domain in pool)
-        expected = (
-            sum(domain.price * domain.weight for domain in pool) / total_weight
-        )
-        assert expected < roll["cost"], (
-            f"{key}: EV={expected:.2f} >= cost={roll['cost']}"
-        )
+    roll = SPIN_TYPES["epic_plus"]
+    pool = [domain for domain in domains if domain.rarity in roll["rarities"]]
+    total_weight = sum(domain.weight for domain in pool)
+    expected = sum(domain.price * domain.weight for domain in pool) / total_weight
+    assert expected < roll["cost"]
 
     total_weight = sum(domain.weight for domain in domains)
     normal_ev = sum(domain.price * domain.weight for domain in domains) / total_weight

@@ -77,33 +77,33 @@ SPIN_TYPES: dict[str, SpinType] = {
         "key": "uncommon_plus",
         "title": "Редкая+",
         "short_title": "Rare+",
-        "cost": 1_700,
+        "cost": 500,
         "rarities": ("rare", "epic", "legendary", "mythic"),
         "min_price": 100,
-        "description": "Rare и выше · 1 700 монет",
+        "description": "Rare и выше · 500 монет",
     },
     "rare_plus": {
         "key": "rare_plus",
         "title": "Эпическая+",
         "short_title": "Epic+",
-        "cost": 18_500,
+        "cost": 10_000,
         "rarities": ("epic", "legendary", "mythic"),
         "min_price": 1_000,
-        "description": "Epic и выше · 18 500 монет",
+        "description": "Epic и выше · 10 000 монет",
     },
     "epic_plus": {
         "key": "epic_plus",
         "title": "Легендарная+",
         "short_title": "Legendary+",
-        "cost": 85_000,
+        "cost": 75_000,
         "rarities": ("legendary", "mythic"),
         "min_price": 10_000,
-        "description": "Legendary и Mythic · 85 000 монет",
+        "description": "Legendary и Mythic · 75 000 монет",
     },
 }
 
-# Rarity luck multipliers are tuned to make Rare+ noticeably more common
-# while keeping the expected payout of every ticket below its price.
+# Rarity luck multipliers are tuned to make Rare+ noticeably more common.
+# Ticket prices are set explicitly by the product owner.
 RARITY_WEIGHT_LUCK: dict[Rarity, float] = {
     "common": 2.5,
     "rare": 3.2,
