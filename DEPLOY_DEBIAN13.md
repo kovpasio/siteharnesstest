@@ -465,6 +465,76 @@ sudo certbot --nginx -d drop.example.com
 
 В этом варианте Caddy **не устанавливайте** — Nginx уже занимает 80/443.
 
+### Вариант C — машина за NAT, публичного IP/домена нет
+
+Если `debian13-client` находится в локальной сети колледжа, Telegram не сможет открыть `http://10.31.0.64:3000`: ему нужен публичный HTTPS. Для теста можно поднять туннель с этой же машины.
+
+Оставьте в `.env`:
+
+```dotenv
+BIND_HOST=127.0.0.1
+APP_PORT=3000
+```
+
+Установите `cloudflared` (для x86_64):
+
+```bash
+curl -L -o /tmp/cloudflared.deb \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i /tmp/cloudflared.deb
+cloudflared --version
+```
+
+Запустите быстрый туннель:
+
+```bash
+cloudflared tunnel --url http://localhost:3000
+```
+
+В выводе будет ссылка вида:
+
+```text
+https://random-words.trycloudflare.com
+```
+
+Это и есть публичный HTTPS-адрес Mini App. Пропишите его:
+
+```dotenv
+WEBAPP_URL=https://random-words.trycloudflare.com
+CORS_ORIGINS=https://random-words.trycloudflare.com
+DEV_MODE=false
+BOT_TOKEN=...
+```
+
+и перезапустите:
+
+```bash
+cd /opt/domain-drop
+docker compose up -d --force-recreate backend bot
+```
+
+Проверьте:
+
+```bash
+curl -fsS https://random-words.trycloudflare.com/api/health
+```
+
+Важно:
+
+- туннель должен работать постоянно; закройте терминал — ссылка умрёт;
+- быстрый `trycloudflare.com`-адрес меняется при каждом перезапуске;
+- для постоянной работы нужен named tunnel Cloudflare с вашим доменом;
+- если Cloudflare в колледже блокируется, остаётся только VPS с публичным IP.
+
+Для временного теста можно запустить туннель в `tmux`:
+
+```bash
+sudo apt install -y tmux
+tmux new -s tunnel
+cloudflared tunnel --url http://localhost:3000
+# Ctrl+B, затем D — выйти из tmux, туннель продолжит работать
+```
+
 ---
 
 ## 8. Telegram
