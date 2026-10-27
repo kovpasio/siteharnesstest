@@ -9,6 +9,7 @@ import { RoulettePage } from '@/pages/RoulettePage';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { DropsPage } from '@/pages/DropsPage';
+import { EarningsPage } from '@/pages/EarningsPage';
 import { UpgraderPage } from '@/pages/UpgraderPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { MorePage } from '@/pages/MorePage';
@@ -53,6 +54,7 @@ export default function App() {
         <Route index element={<ProfilePage />} />
         <Route path="/roulette" element={<RoulettePage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/earn" element={<EarningsPage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/drops" element={<DropsPage />} />
         <Route path="/upgrader" element={<UpgraderPage />} />

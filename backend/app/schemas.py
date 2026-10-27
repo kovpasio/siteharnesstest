@@ -202,6 +202,11 @@ class DailyBonusOut(BaseModel):
     user: UserOut
 
 
+class EarnOut(BaseModel):
+    earned: int
+    balance: int
+
+
 class RollTypeOut(BaseModel):
     key: str
     title: str

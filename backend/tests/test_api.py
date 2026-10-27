@@ -15,6 +15,7 @@ from app.models import Base, Domain
 from app.routers import (
     auth,
     domains,
+    earnings,
     inventory,
     leaderboard,
     settings as settings_router,
@@ -108,6 +109,7 @@ async def test_context(monkeypatch):
         users.router,
         domains.router,
         spins.router,
+        earnings.router,
         inventory.router,
         leaderboard.router,
         settings_router.router,
@@ -288,6 +290,23 @@ async def test_auth_rejects_bad_init_data(test_context):
         json={"init_data": "auth_date=1&hash=deadbeef&user=%7B%7D"},
     )
     assert response.status_code in {401, 503}
+
+
+async def test_earn_click_adds_exactly_one_coin(test_context):
+    client, _Session, _fake = test_context
+    _payload, headers = await _auth(client)
+    me = await client.get("/api/me", headers=headers)
+    assert me.json()["user"]["balance"] == 5000
+
+    first = await client.post("/api/earnings/click", headers=headers)
+    second = await client.post("/api/earnings/click", headers=headers)
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json() == {"earned": 1, "balance": 5001}
+    assert second.json() == {"earned": 1, "balance": 5002}
+
+    me_after = await client.get("/api/me", headers=headers)
+    assert me_after.json()["user"]["balance"] == 5002
 
 
 async def test_mythic_roulette_is_gone(test_context):

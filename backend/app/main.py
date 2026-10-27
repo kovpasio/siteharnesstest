@@ -15,6 +15,7 @@ from app.routers import (
     auth,
     domains,
     drops,
+    earnings,
     inventory,
     leaderboard,
     settings as settings_router,
@@ -80,6 +81,7 @@ app.include_router(spins.router, prefix=api_prefix)
 app.include_router(inventory.router, prefix=api_prefix)
 app.include_router(leaderboard.router, prefix=api_prefix)
 app.include_router(drops.router, prefix=api_prefix)
+app.include_router(earnings.router, prefix=api_prefix)
 app.include_router(settings_router.router, prefix=api_prefix)
 app.include_router(upgrades.router, prefix=api_prefix)
 

@@ -5,6 +5,7 @@ import type {
   DailyBonusResponse,
   Domain,
   DropsResponse,
+  EarnResult,
   InventoryItem,
   LeaderboardResponse,
   MeResponse,
@@ -165,6 +166,8 @@ export const api = {
 
   dailyBonus: () =>
     request<DailyBonusResponse>('/daily-bonus', { method: 'POST' }),
+
+  earnClick: () => request<EarnResult>('/earnings/click', { method: 'POST' }),
 
   autosell: () => request<AutosellSettings>('/settings/autosell'),
 

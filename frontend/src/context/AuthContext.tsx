@@ -16,6 +16,7 @@ interface AuthContextValue {
   error: string | null;
   refresh: () => Promise<void>;
   applyBalance: (balance: number) => void;
+  incrementBalance: (delta: number) => void;
   retry: () => void;
 }
 
@@ -89,14 +90,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const incrementBalance = useCallback((delta: number) => {
+    setMe((current) =>
+      current
+        ? { ...current, user: { ...current.user, balance: current.user.balance + delta } }
+        : current,
+    );
+  }, []);
+
   const retry = useCallback(() => {
     setToken(null);
     setAttempt((value) => value + 1);
   }, []);
 
   const value = useMemo(
-    () => ({ me, loading, error, refresh, applyBalance, retry }),
-    [me, loading, error, refresh, applyBalance, retry],
+    () => ({ me, loading, error, refresh, applyBalance, incrementBalance, retry }),
+    [me, loading, error, refresh, applyBalance, incrementBalance, retry],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

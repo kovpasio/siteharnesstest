@@ -40,6 +40,11 @@ export interface MeResponse {
   stats: MeStats;
 }
 
+export interface EarnResult {
+  earned: number;
+  balance: number;
+}
+
 export interface AuthResponse {
   access_token: string;
   token_type: string;
