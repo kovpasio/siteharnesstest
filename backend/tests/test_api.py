@@ -154,7 +154,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     assert meta.status_code == 200
     meta_data = meta.json()
     assert meta_data["total_domains"] == 5
-    assert [item["cost"] for item in meta_data["roll_types"]] == [200, 1_700, 18_500, 85_000]
+    assert [item["cost"] for item in meta_data["roll_types"]] == [100, 1_700, 18_500, 85_000]
     assert [item["key"] for item in meta_data["roll_types"]] == [
         "normal",
         "uncommon_plus",
@@ -174,7 +174,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     first = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
     assert first.status_code == 200, first.text
     first_data = first.json()
-    assert first_data["balance"] == 4800
+    assert first_data["balance"] == 4900
     assert first_data["auto_sold"] is False
     assert "server_seed" not in first_data
     limited = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
@@ -200,7 +200,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     auto_data = auto_spin.json()
     assert auto_data["auto_sold"] is True
     assert auto_data["auto_sold_price"] == auto_data["price"]
-    assert auto_data["balance"] == 4800 - 200 + auto_data["auto_sold_price"]
+    assert auto_data["balance"] == 4900 - 100 + auto_data["auto_sold_price"]
 
     # Turn autosell off and collect three domains.
     response = await client.put(
@@ -300,13 +300,16 @@ async def test_earn_click_adds_exactly_one_coin(test_context):
 
     first = await client.post("/api/earnings/click", headers=headers)
     second = await client.post("/api/earnings/click", headers=headers)
+    held = await client.post("/api/earnings/hold", headers=headers)
     assert first.status_code == 200, first.text
     assert second.status_code == 200, second.text
+    assert held.status_code == 200, held.text
     assert first.json() == {"earned": 1, "balance": 5001}
     assert second.json() == {"earned": 1, "balance": 5002}
+    assert held.json() == {"earned": 5, "balance": 5007}
 
     me_after = await client.get("/api/me", headers=headers)
-    assert me_after.json()["user"]["balance"] == 5002
+    assert me_after.json()["user"]["balance"] == 5007
 
 
 async def test_mythic_roulette_is_gone(test_context):

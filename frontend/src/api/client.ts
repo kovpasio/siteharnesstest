@@ -169,6 +169,8 @@ export const api = {
 
   earnClick: () => request<EarnResult>('/earnings/click', { method: 'POST' }),
 
+  earnHold: () => request<EarnResult>('/earnings/hold', { method: 'POST' }),
+
   autosell: () => request<AutosellSettings>('/settings/autosell'),
 
   updateAutosell: (settings: AutosellSettings) =>
@@ -177,10 +179,14 @@ export const api = {
       body: JSON.stringify(settings),
     }),
 
-  upgrade: (domainIds: number[], chanceSector: 10 | 25 | 50 | 75) =>
+  upgrade: (domainIds: number[], chanceSector: 10 | 25 | 50 | 75, chance: number) =>
     request<UpgradeResult>('/upgrade', {
       method: 'POST',
-      body: JSON.stringify({ domain_ids: domainIds, chance_sector: chanceSector }),
+      body: JSON.stringify({
+        domain_ids: domainIds,
+        chance_sector: chanceSector,
+        chance,
+      }),
     }),
 };
 

@@ -7,14 +7,15 @@ type NavItemDef = {
   to: string;
   label: string;
   icon: typeof UserRound;
-  accent?: boolean;
   activePaths?: string[];
 };
 
-const ITEMS: NavItemDef[] = [
+const LEFT_ITEMS: NavItemDef[] = [
   { to: '/', label: 'Профиль', icon: UserRound },
   { to: '/inventory', label: 'Инвентарь', icon: Package },
-  { to: '/roulette', label: 'Рулетка', icon: Dices, accent: true },
+];
+
+const RIGHT_ITEMS: NavItemDef[] = [
   { to: '/earn', label: 'Заработок', icon: Coins },
   { to: '/upgrader', label: 'Апгрейдер', icon: ArrowUpFromLine },
   {
@@ -27,26 +28,51 @@ const ITEMS: NavItemDef[] = [
 
 export function BottomNav() {
   const location = useLocation();
+  const rouletteActive = location.pathname === '/roulette';
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-md">
       <div className="relative border-t border-white/[0.08] bg-ink-900/95 pb-[max(env(safe-area-inset-bottom),9px)] pt-1.5 backdrop-blur-xl">
-        <div className="grid grid-cols-6 items-end px-1">
-          {ITEMS.map((item) => {
-            const active = item.activePaths
-              ? item.activePaths.includes(location.pathname)
-              : location.pathname === item.to;
-            return (
+        <div className="relative flex items-end px-1 pb-1.5">
+          <div className="flex flex-1 justify-around">
+            {LEFT_ITEMS.map((item) => (
               <NavItem
                 key={item.to}
-                to={item.to}
-                label={item.label}
-                icon={item.icon}
-                accent={Boolean(item.accent)}
-                active={active}
+                {...item}
+                active={location.pathname === item.to}
               />
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="w-[62px] shrink-0" />
+
+          <div className="flex flex-1 justify-around">
+            {RIGHT_ITEMS.map((item) => (
+              <NavItem
+                key={item.to}
+                {...item}
+                active={
+                  item.activePaths
+                    ? item.activePaths.includes(location.pathname)
+                    : location.pathname === item.to
+                }
+              />
+            ))}
+          </div>
+
+          <Link
+            to="/roulette"
+            onClick={() => hapticSelection()}
+            aria-label="Крутить рулетку"
+            className={cn(
+              'absolute left-1/2 top-[-24px] flex h-[54px] w-[54px] -translate-x-1/2 items-center justify-center rounded-2xl border transition active:scale-95',
+              rouletteActive
+                ? 'border-teal/60 bg-gradient-to-br from-accent to-teal text-[#07111D] shadow-neon-lime'
+                : 'border-accent/50 bg-gradient-to-br from-accent/90 to-accent-deep text-white shadow-neon-lime',
+            )}
+          >
+            <Dices size={24} strokeWidth={2} />
+          </Link>
         </div>
       </div>
     </nav>
@@ -58,34 +84,23 @@ function NavItem({
   label,
   icon: Icon,
   active,
-  accent,
 }: {
   to: string;
   label: string;
   icon: typeof UserRound;
   active: boolean;
-  accent: boolean;
 }) {
   return (
     <Link
       to={to}
       onClick={() => hapticSelection()}
       className={cn(
-        'relative flex min-w-0 flex-col items-center gap-1 pb-1.5 pt-1 transition',
+        'relative flex min-w-0 flex-col items-center gap-1 pb-1 pt-1 transition',
         active ? 'text-paper' : 'text-muted/65 hover:text-paper/80',
       )}
     >
-      <span
-        className={cn(
-          'flex h-[26px] items-center justify-center rounded-lg transition',
-          accent
-            ? 'w-[30px] bg-gradient-to-br from-accent to-teal text-[#07111D] shadow-neon-lime'
-            : 'w-[26px]',
-        )}
-      >
-        <Icon size={accent ? 18 : 17} strokeWidth={active || accent ? 2.2 : 1.8} />
-      </span>
-      <span className="w-full truncate text-center text-[7.5px] font-medium leading-none">
+      <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
+      <span className="w-full truncate text-center text-[7px] font-medium leading-none">
         {label}
       </span>
       {active && (

@@ -64,7 +64,12 @@ async def upgrade_domains(
     spent_value = sum(int(item.domain.price) for item in items)
     sector = payload.chance_sector
     multiplier = UPGRADE_SECTORS[sector]
-    exact_chance = round(sector + rng.random() * 0.99, 2)
+    exact_chance = payload.chance
+    if exact_chance is None:
+        exact_chance = sector + rng.random() * 0.99
+    if not sector <= exact_chance <= sector + 0.99:
+        raise HTTPException(status_code=422, detail="Шанс вне выбранного сектора")
+    exact_chance = round(exact_chance, 2)
     success = rng.random() * 100 < exact_chance
     now = datetime.now(timezone.utc)
 
@@ -73,8 +78,7 @@ async def upgrade_domains(
         item.sold_at = now
         item.sold_price = 0
 
-    target_value = int(round(spent_value * multiplier * rng.uniform(0.8, 1.2)))
-    target_value = max(1, target_value)
+    target_value = max(1, int(round(spent_value * multiplier)))
     target_rarity = rarity_for_price(target_value)
     won_domain: Domain | None = None
 

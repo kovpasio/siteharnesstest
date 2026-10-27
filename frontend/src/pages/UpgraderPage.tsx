@@ -49,6 +49,7 @@ export function UpgraderPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [sectorIndex, setSectorIndex] = useState(2);
+  const [quotedChance, setQuotedChance] = useState(() => 50 + Math.random() * 0.99);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [forging, setForging] = useState(false);
   const [arrowAngle, setArrowAngle] = useState(0);
@@ -60,6 +61,10 @@ export function UpgraderPage() {
     sector.sector,
     sector.sector + 0.99,
   ];
+
+  function newQuote(value: number) {
+    return Math.round((value + Math.random() * 0.99) * 100) / 100;
+  }
 
   async function loadInventory() {
     try {
@@ -115,14 +120,16 @@ export function UpgraderPage() {
       const response = await api.upgrade(
         selectedItems.map((item) => item.id),
         sector.sector,
+        quotedChance,
       );
-      const finalAngle = landingAngle(sector.sector, response.success);
+      const finalAngle = landingAngle(quotedChance, response.success);
       setArrowAngle(1440 + finalAngle);
       // 2.2s spin + a short pause so the landed arrow is readable.
       await new Promise((resolve) => window.setTimeout(resolve, 3200));
       setResult(response);
       setForging(false);
       setArrowAngle(0);
+      setQuotedChance(newQuote(sector.sector));
       setSelectedIds(new Set());
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
       await loadInventory();
@@ -174,8 +181,7 @@ export function UpgraderPage() {
 
             <div className="relative flex justify-center py-1">
               <ChanceWheel
-                percent={sector.sector}
-                multiplier={sector.multiplier}
+                percent={quotedChance}
                 chanceRange={chanceRange}
                 color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
                 arrowAngle={0}
@@ -193,6 +199,7 @@ export function UpgraderPage() {
                     disabled={forging}
                     onClick={() => {
                       setSectorIndex(index);
+                      setQuotedChance(newQuote(item.sector));
                       hapticImpact('light');
                     }}
                     className={cn(
@@ -209,12 +216,11 @@ export function UpgraderPage() {
                     }
                   >
                     <div
-                      className="font-display text-[12px] font-bold"
+                      className="py-0.5 font-display text-[12px] font-bold"
                       style={{ color: active ? SECTOR_COLORS[index] : undefined }}
                     >
                       {item.sector}%
                     </div>
-                    <div className="mt-0.5 text-[7px] text-muted">×{item.multiplier}</div>
                   </button>
                 );
               })}
@@ -223,10 +229,7 @@ export function UpgraderPage() {
             <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl border border-white/[0.07] bg-ink-900/70 p-3">
               <ForgeStat label="Сумма" value={`${formatNumber(sum)} D`} />
               <ForgeStat label="Цель" value={`${formatNumber(target)} D`} good />
-              <ForgeStat
-                label="Точный шанс"
-                value={`${chanceRange[0].toFixed(0)}–${chanceRange[1].toFixed(0)}%`}
-              />
+              <ForgeStat label="Шанс" value={`${quotedChance.toFixed(2)}%`} />
             </div>
 
             <div className="mt-3 min-h-[54px]">
@@ -374,8 +377,7 @@ export function UpgraderPage() {
         {forging && (
           <ForgeOverlay
             items={selectedItems}
-            percent={sector.sector}
-            multiplier={sector.multiplier}
+            percent={quotedChance}
             color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
             chanceRange={chanceRange}
             arrowAngle={arrowAngle}
@@ -397,10 +399,8 @@ export function UpgraderPage() {
               <span className="text-paper">{formatNumber(sum)} D</span>
             </div>
             <div className="mt-2 flex justify-between text-[10px] text-muted">
-              <span>Шанс / множитель</span>
-              <span className="text-gold">
-                {sector.sector}–{(sector.sector + 0.99).toFixed(2)}% · ×{sector.multiplier}
-              </span>
+              <span>Шанс</span>
+              <span className="text-gold">{quotedChance.toFixed(2)}%</span>
             </div>
           </div>
           <div className="flex items-start gap-2 rounded-lg border border-rarity-legendary/20 bg-rarity-legendary/[0.05] px-3 py-2.5 text-[9px] leading-relaxed text-muted">
@@ -477,7 +477,6 @@ function polar(cx: number, cy: number, radius: number, angle: number) {
 
 function ChanceWheel({
   percent,
-  multiplier,
   chanceRange,
   color,
   arrowAngle,
@@ -485,7 +484,6 @@ function ChanceWheel({
   large = false,
 }: {
   percent: number;
-  multiplier: number;
   chanceRange: [number, number] | number[];
   color: string;
   arrowAngle: number;
@@ -575,14 +573,8 @@ function ChanceWheel({
         <div className="text-[7px] font-bold uppercase tracking-[0.26em] text-muted/60">
           chance
         </div>
-        <div className="mt-1 font-display text-[34px] font-bold leading-none tracking-tight text-paper">
-          {moving ? '···' : `${percent}%`}
-        </div>
-        <div
-          className="mt-1.5 rounded-full border px-2 py-0.5 font-display text-[10px] font-semibold"
-          style={{ borderColor: `${color}55`, background: `${color}14`, color }}
-        >
-          ×{multiplier}
+        <div className="mt-1 font-display text-[30px] font-bold leading-none tracking-tight text-paper">
+          {moving ? '···' : `${percent.toFixed(2)}%`}
         </div>
         <div className="mt-2 text-[7px] text-muted/60">
           {moving
@@ -597,14 +589,12 @@ function ChanceWheel({
 function ForgeOverlay({
   items,
   percent,
-  multiplier,
   color,
   chanceRange,
   arrowAngle,
 }: {
   items: InventoryItem[];
   percent: number;
-  multiplier: number;
   color: string;
   chanceRange: [number, number] | number[];
   arrowAngle: number;
@@ -633,7 +623,6 @@ function ForgeOverlay({
         <div className="mt-2 flex justify-center">
           <ChanceWheel
             percent={percent}
-            multiplier={multiplier}
             chanceRange={chanceRange}
             color={color}
             arrowAngle={arrowAngle}
@@ -694,9 +683,7 @@ function ResultCard({ result, onClose }: { result: UpgradeResult; onClose: () =>
         <>
           <div className="mt-2 flex items-center gap-2">
             <RarityBadge rarity={result.domain.rarity} />
-            <span className="text-[8px] text-muted">
-              шанс {result.chance.toFixed(2)}% · ×{result.multiplier}
-            </span>
+            <span className="text-[8px] text-muted">шанс {result.chance.toFixed(2)}%</span>
           </div>
           <div className="mt-2 font-display text-[26px] font-semibold tracking-tight text-paper">
             {result.domain.name}
