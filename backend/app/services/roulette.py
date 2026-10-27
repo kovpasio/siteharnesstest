@@ -5,8 +5,25 @@ import random
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.economy import Rarity
+from app.economy import Rarity, SpinType
 from app.models import Domain
+
+
+def choose_rarity(roll: SpinType) -> Rarity:
+    """Choose a rarity from the configured per-roulette chance table."""
+    rarities = list(roll["rarity_chances"].keys())
+    weights = [roll["rarity_chances"][rarity] for rarity in rarities]
+    return random.choices(rarities, weights=weights, k=1)[0]
+
+
+async def random_domain_in_rarity(db: AsyncSession, rarity: Rarity) -> Domain | None:
+    """Uniform random real domain inside one rarity tier."""
+    return await db.scalar(
+        select(Domain)
+        .where(Domain.is_available.is_(True), Domain.rarity == rarity)
+        .order_by(func.random())
+        .limit(1)
+    )
 
 
 async def weighted_random_domain(

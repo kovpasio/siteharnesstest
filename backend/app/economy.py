@@ -59,6 +59,7 @@ class SpinType(TypedDict):
     short_title: str
     cost: int
     rarities: tuple[Rarity, ...]
+    rarity_chances: dict[Rarity, float]
     min_price: int
     description: str
 
@@ -70,6 +71,13 @@ SPIN_TYPES: dict[str, SpinType] = {
         "short_title": "Все",
         "cost": 100,
         "rarities": RARITY_ORDER,
+        "rarity_chances": {
+            "common": 91.23,
+            "rare": 8.10,
+            "epic": 0.60,
+            "legendary": 0.06,
+            "mythic": 0.01,
+        },
         "min_price": 40,
         "description": "Все редкости · 100 монет",
     },
@@ -79,6 +87,12 @@ SPIN_TYPES: dict[str, SpinType] = {
         "short_title": "Rare+",
         "cost": 450,
         "rarities": ("rare", "epic", "legendary", "mythic"),
+        "rarity_chances": {
+            "rare": 98.24,
+            "epic": 1.70,
+            "legendary": 0.05,
+            "mythic": 0.01,
+        },
         "min_price": 250,
         "description": "Rare и выше · 450 монет",
     },
@@ -88,6 +102,11 @@ SPIN_TYPES: dict[str, SpinType] = {
         "short_title": "Epic+",
         "cost": 2_000,
         "rarities": ("epic", "legendary", "mythic"),
+        "rarity_chances": {
+            "epic": 99.95,
+            "legendary": 0.04,
+            "mythic": 0.01,
+        },
         "min_price": 1_200,
         "description": "Epic и выше · 2 000 монет",
     },
@@ -97,6 +116,10 @@ SPIN_TYPES: dict[str, SpinType] = {
         "short_title": "Legendary+",
         "cost": 10_000,
         "rarities": ("legendary", "mythic"),
+        "rarity_chances": {
+            "legendary": 99.50,
+            "mythic": 0.50,
+        },
         "min_price": 6_000,
         "description": "Legendary и Mythic · 10 000 монет",
     },

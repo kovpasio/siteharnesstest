@@ -267,7 +267,12 @@ PRICE_RANGES: dict[str, tuple[int, int]] = {
 
 def _game_price(full_name: str, rarity: str) -> int:
     low, high = PRICE_RANGES[rarity]
-    return random.Random(f"{SEED}:{full_name}:game-price:{rarity}").randint(low, high)
+    rng = random.Random(f"{SEED}:{full_name}:game-price:{rarity}")
+    if rarity == "legendary":
+        # Legendary+ must land near 140% RTP: bias the tier toward its lower
+        # half while keeping the full 6k..25k range available.
+        return low + int((high - low) * (rng.random() ** 1.5))
+    return rng.randint(low, high)
 
 
 @lru_cache(maxsize=1)

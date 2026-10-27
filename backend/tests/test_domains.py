@@ -82,6 +82,9 @@ def test_all_roulette_costs_and_rarity_pools():
     assert "mythic" not in SPIN_TYPES
     assert SPIN_TYPES["normal"]["rarities"] == RARITY_ORDER
     assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")
+    for key, roll in SPIN_TYPES.items():
+        assert set(roll["rarity_chances"]) == set(roll["rarities"]), key
+        assert sum(roll["rarity_chances"].values()) == pytest.approx(100.0), key
 
 
 def test_real_domain_catalog_has_requested_sizes_and_brands():
@@ -91,6 +94,21 @@ def test_real_domain_catalog_has_requested_sizes_and_brands():
     assert "google.com" in names
     assert "microsoft.com" in names
     assert all(name.count(".") == 1 for name in names)
+
+
+def test_each_roulette_has_about_140_percent_rtp():
+    domains = generate_domains(MAX_DOMAIN_COUNT)
+    averages = {
+        rarity: sum(domain.price for domain in domains if domain.rarity == rarity)
+        / sum(1 for domain in domains if domain.rarity == rarity)
+        for rarity in RARITY_ORDER
+    }
+    for key, roll in SPIN_TYPES.items():
+        expected = sum(
+            roll["rarity_chances"][rarity] / 100 * averages[rarity]
+            for rarity in roll["rarities"]
+        )
+        assert 130 <= expected / roll["cost"] * 100 <= 150, key
 
 
 def test_full_generator_has_100k_unique_domains_and_examples():

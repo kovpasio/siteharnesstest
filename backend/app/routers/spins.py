@@ -19,7 +19,7 @@ from app.security import get_current_user
 from app.services.autosell import get_or_create_settings, should_autosell
 from app.services.realtime import publish_drop
 from app.services.redis_client import redis_client
-from app.services.roulette import weighted_random_domain
+from app.services.roulette import choose_rarity, random_domain_in_rarity
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/spin", tags=["spin"])
@@ -88,7 +88,8 @@ async def spin(
                 detail=f"Недостаточно монет: нужно {roll['cost']}",
             )
 
-        domain = await weighted_random_domain(db, roll["rarities"])
+        rarity = choose_rarity(roll)
+        domain = await random_domain_in_rarity(db, rarity)
         if domain is None:
             raise HTTPException(status_code=503, detail="Пул доменов пуст")
 
