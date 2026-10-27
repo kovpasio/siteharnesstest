@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.database import get_db
-from app.economy import weight_for_price
+from app.economy import weight_for
 from app.models import Base, Domain
 from app.routers import (
     auth,
@@ -30,7 +30,7 @@ TEST_DOMAINS = [
         zone=".com",
         price=1_100_000,
         rarity="mythic",
-        weight=weight_for_price(1_100_000),
+        weight=weight_for(1_100_000, "mythic"),
         is_available=True,
     ),
     Domain(
@@ -38,7 +38,7 @@ TEST_DOMAINS = [
         zone=".com",
         price=50_000,
         rarity="legendary",
-        weight=weight_for_price(50_000),
+        weight=weight_for(50_000, "legendary"),
         is_available=True,
     ),
     Domain(
@@ -46,7 +46,7 @@ TEST_DOMAINS = [
         zone=".ru",
         price=5_000,
         rarity="epic",
-        weight=weight_for_price(5_000),
+        weight=weight_for(5_000, "epic"),
         is_available=True,
     ),
     Domain(
@@ -54,7 +54,7 @@ TEST_DOMAINS = [
         zone=".io",
         price=200,
         rarity="rare",
-        weight=weight_for_price(200),
+        weight=weight_for(200, "rare"),
         is_available=True,
     ),
     Domain(
@@ -62,7 +62,7 @@ TEST_DOMAINS = [
         zone=".xyz",
         price=10,
         rarity="common",
-        weight=weight_for_price(10),
+        weight=weight_for(10, "common"),
         is_available=True,
     ),
 ]
@@ -154,7 +154,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     assert meta.status_code == 200
     meta_data = meta.json()
     assert meta_data["total_domains"] == 5
-    assert [item["cost"] for item in meta_data["roll_types"]] == [50, 1_100, 20_000, 90_000]
+    assert [item["cost"] for item in meta_data["roll_types"]] == [200, 1_700, 18_500, 85_000]
     assert [item["key"] for item in meta_data["roll_types"]] == [
         "normal",
         "uncommon_plus",
@@ -174,7 +174,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     first = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
     assert first.status_code == 200, first.text
     first_data = first.json()
-    assert first_data["balance"] == 4950
+    assert first_data["balance"] == 4800
     assert first_data["auto_sold"] is False
     assert "server_seed" not in first_data
     limited = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
@@ -200,7 +200,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     auto_data = auto_spin.json()
     assert auto_data["auto_sold"] is True
     assert auto_data["auto_sold_price"] == auto_data["price"]
-    assert auto_data["balance"] == 4950 - 50 + auto_data["auto_sold_price"]
+    assert auto_data["balance"] == 4800 - 200 + auto_data["auto_sold_price"]
 
     # Turn autosell off and collect three domains.
     response = await client.put(

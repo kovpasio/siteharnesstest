@@ -14,7 +14,7 @@ from app.economy import (
     calculate_price,
     length_factor,
     rarity_for_price,
-    weight_for_price,
+    weight_for,
 )
 
 
@@ -47,10 +47,11 @@ def test_price_formula_and_rarity_thresholds():
     assert rarity_for_price(100000) == "mythic"
 
 
-def test_weight_is_power_curve():
-    assert weight_for_price(10) > weight_for_price(1_000_000)
-    assert weight_for_price(1_000_000) == pytest.approx(1 / (1_000_000**0.6), rel=1e-9)
-    assert weight_for_price(1) == 1.0
+def test_weight_applies_rarity_luck():
+    assert weight_for(10, "common") > weight_for(1_000_000, "mythic")
+    assert weight_for(1_000_000, "mythic") == pytest.approx(5.5 / (1_000_000**0.6), rel=1e-9)
+    assert weight_for(100, "rare") > weight_for(100, "common") * 3
+    assert weight_for(1, "common") == 1.0
 
 
 def test_upgrade_sectors_have_negative_ev():
@@ -59,7 +60,7 @@ def test_upgrade_sectors_have_negative_ev():
 
 
 def test_all_roulette_costs_and_rarity_pools():
-    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [50, 1_100, 20_000, 90_000]
+    assert [SPIN_TYPES[key]["cost"] for key in SPIN_TYPES] == [200, 1_700, 18_500, 85_000]
     assert "mythic" not in SPIN_TYPES
     assert SPIN_TYPES["normal"]["rarities"] == RARITY_ORDER
     assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")

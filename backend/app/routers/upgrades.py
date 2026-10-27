@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.economy import UPGRADE_SECTORS, rarity_for_price, weight_for_price
+from app.economy import UPGRADE_SECTORS, rarity_for_price, weight_for
 from app.models import Domain, Inventory, Upgrade, User
 from app.schemas import DomainOut, UpgradeIn, UpgradeOut
 from app.security import get_current_user
@@ -101,7 +101,7 @@ async def upgrade_domains(
                         zone=zone,
                         price=target_value,
                         rarity="mythic",
-                        weight=round(weight_for_price(target_value), 8),
+                        weight=round(weight_for(target_value, "mythic"), 8),
                         is_available=True,
                     )
                     db.add(won_domain)
@@ -127,7 +127,7 @@ async def upgrade_domains(
                     zone=zone,
                     price=target_value,
                     rarity="mythic",
-                    weight=round(weight_for_price(target_value), 8),
+                    weight=round(weight_for(target_value, "mythic"), 8),
                     is_available=True,
                 )
                 db.add(won_domain)

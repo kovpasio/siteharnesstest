@@ -19,7 +19,7 @@ from app.economy import (
     ZONES,
     calculate_price,
     rarity_for_price,
-    weight_for_price,
+    weight_for,
 )
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -136,13 +136,14 @@ class DomainGenerator:
         else:
             price = explicit_price
         self.seen.add(key)
+        rarity = rarity_for_price(price)
         self.domains.append(
             GeneratedDomain(
                 name=name,
                 zone=zone,
                 price=price,
-                rarity=rarity_for_price(price),
-                weight=round(weight_for_price(price), 8),
+                rarity=rarity,
+                weight=round(weight_for(price, rarity), 8),
             )
         )
         return True

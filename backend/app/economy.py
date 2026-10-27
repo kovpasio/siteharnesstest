@@ -68,38 +68,48 @@ SPIN_TYPES: dict[str, SpinType] = {
         "key": "normal",
         "title": "Обычная",
         "short_title": "Все",
-        "cost": 50,
+        "cost": 200,
         "rarities": RARITY_ORDER,
         "min_price": 1,
-        "description": "Все редкости · 50 монет",
+        "description": "Все редкости · 200 монет",
     },
     "uncommon_plus": {
         "key": "uncommon_plus",
         "title": "Необычная+",
         "short_title": "Rare+",
-        "cost": 1_100,
+        "cost": 1_700,
         "rarities": ("rare", "epic", "legendary", "mythic"),
         "min_price": 100,
-        "description": "Rare и выше · 1 100 монет",
+        "description": "Rare и выше · 1 700 монет",
     },
     "rare_plus": {
         "key": "rare_plus",
         "title": "Редкая+",
         "short_title": "Epic+",
-        "cost": 20_000,
+        "cost": 18_500,
         "rarities": ("epic", "legendary", "mythic"),
         "min_price": 1_000,
-        "description": "Epic и выше · 20 000 монет",
+        "description": "Epic и выше · 18 500 монет",
     },
     "epic_plus": {
         "key": "epic_plus",
         "title": "Эпическая+",
         "short_title": "Legendary+",
-        "cost": 90_000,
+        "cost": 85_000,
         "rarities": ("legendary", "mythic"),
         "min_price": 10_000,
-        "description": "Legendary и Mythic · 90 000 монет",
+        "description": "Legendary и Mythic · 85 000 монет",
     },
+}
+
+# Rarity luck multipliers are tuned to make Rare+ noticeably more common
+# while keeping the expected payout of every ticket below its price.
+RARITY_WEIGHT_LUCK: dict[Rarity, float] = {
+    "common": 1.0,
+    "rare": 3.2,
+    "epic": 7.0,
+    "legendary": 6.5,
+    "mythic": 5.5,
 }
 
 # Upgrade sectors: sector -> multiplier. The exact chance is generated
@@ -159,14 +169,15 @@ def calculate_price(name: str, zone: str, readability: str, jitter: float) -> in
     return max(1, int(round(raw)))
 
 
-def weight_for_price(price: int) -> float:
-    """Power curve: expensive names are dramatically rarer than cheap ones.
+def weight_for(price: int, rarity: Rarity) -> float:
+    """Price curve combined with a rarity luck multiplier.
 
-    The previous inverse-log weight made high-rarity domains far too common.
-    This curve keeps the full sale price while making every roulette's
-    expected payout lower than its cost.
+    Expensive names stay rare inside their rarity, while Rare and above get
+    a visible luck boost. The values are tuned together with spin costs so
+    that every ticket still has EV below its price.
     """
-    return 1.0 / math.pow(max(1, price), 0.6)
+    luck = RARITY_WEIGHT_LUCK[rarity]
+    return luck / math.pow(max(1, price), 0.6)
 
 
 def rarity_for_price(price: int) -> Rarity:

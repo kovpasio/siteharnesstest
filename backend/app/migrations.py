@@ -26,8 +26,16 @@ POSTGRES_STATEMENTS = (
     "ALTER TABLE inventory ALTER COLUMN sold_price TYPE BIGINT",
     "CREATE INDEX IF NOT EXISTS ix_domains_available_rarity ON domains (is_available, rarity)",
     "CREATE INDEX IF NOT EXISTS ix_domains_price ON domains (price)",
-    # Rebalance existing volumes to the new power-curve rarity.
-    "UPDATE domains SET weight = 1.0 / POWER(GREATEST(price, 1), 0.6) WHERE is_available = TRUE",
+    # Rebalance existing volumes to the new rarity luck + price curve.
+    """UPDATE domains SET weight = (
+        CASE rarity
+            WHEN 'rare' THEN 3.2
+            WHEN 'epic' THEN 7.0
+            WHEN 'legendary' THEN 6.5
+            WHEN 'mythic' THEN 5.5
+            ELSE 1.0
+        END
+    ) / POWER(GREATEST(price, 1), 0.6) WHERE is_available = TRUE""",
 )
 
 
