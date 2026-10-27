@@ -11,6 +11,7 @@
 
 - [Быстрый старт](#быстрый-старт)
 - [GitHub Codespaces](#github-codespaces)
+- [Деплой на Debian 13](#деплой-на-debian-13)
 - [Каталог доменов](#каталог-доменов)
 - [Рулетки](#рулетки)
 - [Экономика и EV](#экономика-и-ev)
@@ -94,6 +95,8 @@ docker compose up -d --force-recreate
 
 ```bash
 cp .env.example .env
+# Codespaces открывает порт через forwarding, поэтому разрешаем bind на 0.0.0.0
+sed -i 's/^BIND_HOST=.*/BIND_HOST=0.0.0.0/' .env
 docker compose up -d --build
 ```
 
@@ -117,6 +120,16 @@ docker compose up -d --force-recreate
 ```
 
 Codespaces подходит для теста, но не для постоянного хостинга: при простое среда останавливается, а удаление Codespace удаляет Docker volumes.
+
+---
+
+## Деплой на Debian 13
+
+Пошаговая инструкция для VPS: установка Docker, `.env`, HTTPS через Caddy или Nginx, Telegram, firewall, бэкапы и **аккуратное удаление старого сайта**:
+
+**[DEPLOY_DEBIAN13.md](DEPLOY_DEBIAN13.md)**
+
+Коротко: на VPS нужны только Docker, Git и reverse-proxy. Python, Node.js, PostgreSQL и Redis работают внутри Docker Compose. Наружу открываются только 22/80/443.
 
 ---
 

@@ -42,7 +42,7 @@ services:
       DEV_MODE: ${DEV_MODE:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BIND_HOST:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -88,7 +88,7 @@ services:
         VITE_API_URL: /api
     image: dropzone-frontend:local
     ports:
-      - "${APP_PORT:-3000}:80"
+      - "${BIND_HOST:-127.0.0.1}:${APP_PORT:-3000}:80"
     depends_on:
       backend:
         condition: service_healthy
