@@ -22,7 +22,7 @@ const RIGHT_ITEMS: NavItemDef[] = [
     to: '/more',
     label: 'Ещё',
     icon: Ellipsis,
-    activePaths: ['/more', '/leaderboard', '/drops', '/settings'],
+    activePaths: ['/more', '/leaderboard', '/drops', '/settings', '/admin'],
   },
 ];
 

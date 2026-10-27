@@ -30,6 +30,8 @@ async def upsert_user(
     display_name: str,
     avatar_url: str | None,
 ) -> User:
+    normalized_username = (username or "").strip().lower().lstrip("@")
+    is_admin = normalized_username in settings.admin_usernames_list
     user = await session.scalar(select(User).where(User.telegram_id == telegram_id))
     if user is None:
         user = User(
@@ -40,6 +42,7 @@ async def upsert_user(
             balance=settings.start_balance,
             pity_counter=0,
             total_spins=0,
+            is_admin=is_admin,
         )
         session.add(user)
         try:
@@ -53,6 +56,8 @@ async def upsert_user(
         user.username = username
         user.display_name = display_name or username or user.display_name
         user.avatar_url = avatar_url
+        if is_admin:
+            user.is_admin = True
         await session.commit()
 
     await session.refresh(user)
@@ -108,6 +113,11 @@ async def auth_telegram(
         display_name=display_name,
         avatar_url=avatar_url,
     )
+    if user.is_banned:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Аккаунт заблокирован администратором",
+        )
     token = create_access_token(user)
     logger.info("Authenticated user %s (%s)", user.id, user.telegram_id)
     return AuthOut(access_token=token, user=UserOut.model_validate(user))

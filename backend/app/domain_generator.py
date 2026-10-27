@@ -137,6 +137,10 @@ class DomainGenerator:
             price = explicit_price
         self.seen.add(key)
         rarity = rarity_for_price(price)
+        if rarity == "common" and explicit_price is None:
+            # Keep the Common bucket, but spread prices across 1..99 instead
+            # of piling almost every drop into the 1-coin end.
+            price = random.Random(f"{SEED}:{name}{zone}:common-price").randint(1, 99)
         self.domains.append(
             GeneratedDomain(
                 name=name,

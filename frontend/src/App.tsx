@@ -8,6 +8,7 @@ import { ProfilePage } from '@/pages/ProfilePage';
 import { RoulettePage } from '@/pages/RoulettePage';
 import { InventoryPage } from '@/pages/InventoryPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { DropsPage } from '@/pages/DropsPage';
 import { EarningsPage } from '@/pages/EarningsPage';
 import { UpgraderPage } from '@/pages/UpgraderPage';
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/upgrader" element={<UpgraderPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/more" element={<MorePage />} />
+        <Route path="/admin" element={<AdminPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

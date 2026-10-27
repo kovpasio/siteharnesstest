@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { ChevronRight, Radio, Settings2, ShieldCheck, Trophy } from 'lucide-react';
+import { ChevronRight, Radio, Settings2, Shield, ShieldCheck, Trophy } from 'lucide-react';
 import { PageTitle } from '@/components/PageTitle';
+import { useAuth } from '@/context/AuthContext';
 
 const LINKS = [
   {
@@ -27,6 +28,20 @@ const LINKS = [
 ];
 
 export function MorePage() {
+  const { me } = useAuth();
+  const links = me?.user.is_admin
+    ? [
+        {
+          to: '/admin',
+          label: 'Админка',
+          description: 'Баланс, баны и выдача доменов',
+          icon: Shield,
+          color: '#43D6C5',
+        },
+        ...LINKS,
+      ]
+    : LINKS;
+
   return (
     <div>
       <PageTitle
@@ -36,7 +51,7 @@ export function MorePage() {
       />
 
       <div className="space-y-2">
-        {LINKS.map(({ to, label, description, icon: Icon, color }) => (
+        {links.map(({ to, label, description, icon: Icon, color }) => (
           <Link
             key={to}
             to={to}

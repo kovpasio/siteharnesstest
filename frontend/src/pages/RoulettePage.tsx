@@ -41,7 +41,7 @@ function fillRibbon(source: Domain[], count = RIBBON_LENGTH): Domain[] {
 }
 
 export function RoulettePage() {
-  const { me, refresh, applyBalance } = useAuth();
+  const { me, refresh, applyBalance, incrementBalance } = useAuth();
   const { toast } = useToast();
   const { playTick, playReveal } = useSound();
 
@@ -161,6 +161,7 @@ export function RoulettePage() {
     }
 
     lock.current = true;
+    incrementBalance(-activeRoll.cost);
     setSpinning(true);
     setRevealed(false);
     setResult(null);
@@ -188,6 +189,7 @@ export function RoulettePage() {
       );
     } catch (error) {
       lock.current = false;
+      incrementBalance(activeRoll.cost);
       setSpinning(false);
       clearFinishTimer();
       toast(error instanceof Error ? error.message : 'Спин не удался', 'error');

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from collections.abc import AsyncGenerator
 
 import fakeredis.aioredis
@@ -13,6 +14,7 @@ from app.database import get_db
 from app.economy import weight_for
 from app.models import Base, Domain
 from app.routers import (
+    admin,
     auth,
     domains,
     earnings,
@@ -90,7 +92,7 @@ async def test_context(monkeypatch):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with Session() as session:
-        session.add_all(TEST_DOMAINS)
+        session.add_all(copy.deepcopy(TEST_DOMAINS))
         await session.commit()
 
     async def override_db() -> AsyncGenerator[AsyncSession, None]:
@@ -106,6 +108,7 @@ async def test_context(monkeypatch):
     app = FastAPI()
     for router in (
         auth.router,
+        admin.router,
         users.router,
         domains.router,
         spins.router,
@@ -126,10 +129,14 @@ async def test_context(monkeypatch):
     await engine.dispose()
 
 
-async def _auth(client: AsyncClient) -> tuple[dict, dict]:
+async def _auth(
+    client: AsyncClient,
+    user_id: int = 900001,
+    username: str = "tester",
+) -> tuple[dict, dict]:
     response = await client.post(
         "/api/auth/telegram",
-        json={"dev_user": {"id": 900001, "username": "tester", "first_name": "Test"}},
+        json={"dev_user": {"id": user_id, "username": username, "first_name": "Test"}},
     )
     assert response.status_code == 200, response.text
     payload = response.json()
@@ -310,6 +317,68 @@ async def test_earn_click_adds_exactly_one_coin(test_context):
 
     me_after = await client.get("/api/me", headers=headers)
     assert me_after.json()["user"]["balance"] == 5007
+
+
+async def test_admin_can_grant_balance_and_ban(test_context):
+    client, _Session, _fake = test_context
+    normal_payload, normal_headers = await _auth(client, 900001, "regular")
+    admin_payload, admin_headers = await _auth(client, 900002, "anxiohalcy")
+    normal_id = normal_payload["user"]["id"]
+
+    assert admin_payload["user"]["is_admin"] is True
+    forbidden = await client.get("/api/admin/users", headers=normal_headers)
+    assert forbidden.status_code == 403
+
+    overview = await client.get("/api/admin/overview", headers=admin_headers)
+    assert overview.status_code == 200
+    assert overview.json()["users"] == 2
+
+    granted = await client.post(
+        f"/api/admin/users/{normal_id}/balance",
+        headers=admin_headers,
+        json={"amount": 500},
+    )
+    assert granted.status_code == 200, granted.text
+    assert granted.json()["balance"] == 5500
+
+    banned = await client.post(
+        f"/api/admin/users/{normal_id}/ban",
+        headers=admin_headers,
+        json={"banned": True, "reason": "test ban"},
+    )
+    assert banned.status_code == 200, banned.text
+    assert banned.json()["is_banned"] is True
+
+    blocked = await client.get("/api/me", headers=normal_headers)
+    assert blocked.status_code == 403
+
+    unban = await client.post(
+        f"/api/admin/users/{normal_id}/ban",
+        headers=admin_headers,
+        json={"banned": False},
+    )
+    assert unban.status_code == 200
+    restored = await client.get("/api/me", headers=normal_headers)
+    assert restored.status_code == 200
+
+    domain = await client.post(
+        f"/api/admin/users/{normal_id}/grant-domain",
+        headers=admin_headers,
+        json={"rarity": "rare"},
+    )
+    assert domain.status_code == 200, domain.text
+    assert domain.json()["domain"]["rarity"] == "rare"
+
+
+async def test_admin_cannot_ban_self(test_context):
+    client, _Session, _fake = test_context
+    payload, headers = await _auth(client, 900003, "anxiohalcy")
+    response = await client.post(
+        f"/api/admin/users/{payload['user']['id']}/ban",
+        headers=headers,
+        json={"banned": True},
+    )
+    assert response.status_code == 422
 
 
 async def test_mythic_roulette_is_gone(test_context):

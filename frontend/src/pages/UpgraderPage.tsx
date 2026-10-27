@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Check,
-  CircleSlash2,
+  Eye,
   Flame,
   Hammer,
   Loader2,
@@ -14,11 +14,16 @@ import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useSound } from '@/context/SoundContext';
-import { BottomSheet } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { PageTitle } from '@/components/PageTitle';
 import { RarityBadge } from '@/components/RarityBadge';
-import type { InventoryItem, Meta, UpgradeResult, UpgradeSector } from '@/types';
+import type {
+  InventoryItem,
+  Meta,
+  UpgradePreview,
+  UpgradeResult,
+  UpgradeSector,
+} from '@/types';
 import { cn, formatNumber, hapticImpact, hapticNotify, RARITY } from '@/lib/utils';
 
 const FALLBACK_SECTORS: UpgradeSector[] = [
@@ -50,9 +55,10 @@ export function UpgraderPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [sectorIndex, setSectorIndex] = useState(2);
   const [quotedChance, setQuotedChance] = useState(() => 50 + Math.random() * 0.99);
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [forging, setForging] = useState(false);
+  const [arrowMoving, setArrowMoving] = useState(false);
   const [arrowAngle, setArrowAngle] = useState(0);
+  const [preview, setPreview] = useState<UpgradePreview | null>(null);
   const [result, setResult] = useState<UpgradeResult | null>(null);
 
   const sectors = meta?.upgrade_sectors?.length ? meta.upgrade_sectors : FALLBACK_SECTORS;
@@ -91,6 +97,34 @@ export function UpgraderPage() {
   const sum = selectedItems.reduce((total, item) => total + item.domain.price, 0);
   const target = Math.round(sum * sector.multiplier);
 
+  useEffect(() => {
+    if (!selectedItems.length) {
+      setPreview(null);
+      return;
+    }
+    let cancelled = false;
+    setPreview(null);
+    setQuotedChance(newQuote(sector.sector));
+    const timer = window.setTimeout(() => {
+      void api
+        .upgradePreview(
+          selectedItems.map((item) => item.id),
+          sector.sector,
+        )
+        .then((next) => {
+          if (!cancelled) setPreview(next);
+        })
+        .catch(() => {
+          if (!cancelled) setPreview(null);
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sum, sector.sector]);
+
   function toggle(id: number) {
     if (forging) return;
     hapticImpact('light');
@@ -111,8 +145,9 @@ export function UpgraderPage() {
 
   async function runUpgrade() {
     if (!selectedItems.length || forging) return;
-    setConfirmOpen(false);
+    const attemptChance = quotedChance;
     setForging(true);
+    setArrowMoving(false);
     setArrowAngle(0);
     setResult(null);
     hapticImpact('medium');
@@ -120,16 +155,16 @@ export function UpgraderPage() {
       const response = await api.upgrade(
         selectedItems.map((item) => item.id),
         sector.sector,
-        quotedChance,
+        attemptChance,
       );
-      const finalAngle = landingAngle(quotedChance, response.success);
+      const finalAngle = landingAngle(attemptChance, response.success);
       setArrowAngle(1440 + finalAngle);
-      // 2.2s spin + a short pause so the landed arrow is readable.
-      await new Promise((resolve) => window.setTimeout(resolve, 3200));
+      setArrowMoving(true);
+      // The spin happens inside the tab, then the result appears in place.
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      setArrowMoving(false);
       setResult(response);
       setForging(false);
-      setArrowAngle(0);
-      setQuotedChance(newQuote(sector.sector));
       setSelectedIds(new Set());
       window.setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 80);
       await loadInventory();
@@ -141,6 +176,7 @@ export function UpgraderPage() {
       void refresh().catch(() => undefined);
     } catch (error) {
       setForging(false);
+      setArrowMoving(false);
       setArrowAngle(0);
       toast(error instanceof Error ? error.message : 'Не удалось выполнить апгрейд', 'error');
     }
@@ -184,8 +220,8 @@ export function UpgraderPage() {
                 percent={quotedChance}
                 chanceRange={chanceRange}
                 color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
-                arrowAngle={0}
-                moving={false}
+                arrowAngle={arrowAngle}
+                moving={arrowMoving}
               />
             </div>
 
@@ -199,7 +235,6 @@ export function UpgraderPage() {
                     disabled={forging}
                     onClick={() => {
                       setSectorIndex(index);
-                      setQuotedChance(newQuote(item.sector));
                       hapticImpact('light');
                     }}
                     className={cn(
@@ -232,6 +267,41 @@ export function UpgraderPage() {
               <ForgeStat label="Шанс" value={`${quotedChance.toFixed(2)}%`} />
             </div>
 
+            {selectedItems.length > 0 && (
+              <div className="mt-3 rounded-xl border border-accent/20 bg-gradient-to-br from-accent/[0.07] to-transparent p-3">
+                <div className="flex items-center gap-1.5 text-[7px] font-bold uppercase tracking-[0.14em] text-accent-soft">
+                  <Eye size={11} /> может выпасть
+                </div>
+                {preview ? (
+                  preview.domain ? (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <RarityBadge rarity={preview.domain.rarity} />
+                        <span className="truncate font-display text-[12px] font-semibold text-paper">
+                          {preview.domain.name}
+                          <span style={{ color: RARITY[preview.domain.rarity].color }}>
+                            {preview.domain.zone}
+                          </span>
+                        </span>
+                      </div>
+                      <span className="shrink-0 font-display text-[11px] font-semibold text-gold">
+                        {formatNumber(preview.domain.price)} D
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted">Новый Mythic-домен</span>
+                      <span className="font-display text-[11px] font-semibold text-rarity-mythic">
+                        ~{formatNumber(preview.target_value)} D
+                      </span>
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-2 text-[9px] text-muted/60">Считаем возможный дроп…</div>
+                )}
+              </div>
+            )}
+
             <div className="mt-3 min-h-[54px]">
               {selectedItems.length ? (
                 <div className="flex gap-1.5 overflow-x-auto axis-x pb-0.5">
@@ -260,7 +330,7 @@ export function UpgraderPage() {
             <button
               type="button"
               disabled={!selectedItems.length || forging}
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => void runUpgrade()}
               className={cn(
                 'mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-display text-[13px] font-bold uppercase tracking-[0.08em] transition active:scale-[0.99]',
                 selectedItems.length
@@ -373,58 +443,6 @@ export function UpgraderPage() {
         При провале все выбранные домены сгорают. Mythic-домены тоже можно улучшать.
       </div>
 
-      <AnimatePresence>
-        {forging && (
-          <ForgeOverlay
-            items={selectedItems}
-            percent={quotedChance}
-            color={SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length]}
-            chanceRange={chanceRange}
-            arrowAngle={arrowAngle}
-          />
-        )}
-      </AnimatePresence>
-
-      <BottomSheet open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Запустить апгрейд?">
-        <div className="space-y-3">
-          <div className="rounded-xl border border-white/[0.07] bg-ink-900 p-4">
-            <div className="flex justify-between text-[10px] text-muted">
-              <span>Доменов сгорит</span>
-              <span className="font-display text-base font-semibold text-paper">
-                {selectedItems.length}
-              </span>
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] text-muted">
-              <span>Суммарная стоимость</span>
-              <span className="text-paper">{formatNumber(sum)} D</span>
-            </div>
-            <div className="mt-2 flex justify-between text-[10px] text-muted">
-              <span>Шанс</span>
-              <span className="text-gold">{quotedChance.toFixed(2)}%</span>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 rounded-lg border border-rarity-legendary/20 bg-rarity-legendary/[0.05] px-3 py-2.5 text-[9px] leading-relaxed text-muted">
-            <CircleSlash2 size={12} className="mt-0.5 shrink-0 text-rarity-legendary" />
-            Это необратимо. При неудаче домены удаляются, компенсации нет.
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(false)}
-              className="rounded-lg border border-white/10 bg-white/[0.03] py-2.5 text-[10px] font-medium text-muted"
-            >
-              Отмена
-            </button>
-            <button
-              type="button"
-              onClick={() => void runUpgrade()}
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-accent to-teal py-2.5 text-[10px] font-bold text-[#08101B]"
-            >
-              <Hammer size={12} /> Прокачать
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
     </div>
   );
 }
@@ -583,67 +601,6 @@ function ChanceWheel({
         </div>
       </div>
     </div>
-  );
-}
-
-function ForgeOverlay({
-  items,
-  percent,
-  color,
-  chanceRange,
-  arrowAngle,
-}: {
-  items: InventoryItem[];
-  percent: number;
-  color: string;
-  chanceRange: [number, number] | number[];
-  arrowAngle: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-[#080E17]/88 px-6 backdrop-blur-md"
-    >
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[80px]"
-        style={{ background: `${color}26` }}
-      />
-      <motion.div
-        initial={{ scale: 0.96, y: 8 }}
-        animate={{ scale: 1, y: 0 }}
-        className="relative w-full max-w-[330px] rounded-2xl border bg-ink-800 p-5 text-center shadow-card"
-        style={{ borderColor: `${color}55` }}
-      >
-        <div className="text-[8px] font-bold uppercase tracking-[0.24em] text-gold">
-          domain forge
-        </div>
-        <div className="mt-1 font-display text-lg font-semibold text-paper">Куём апгрейд…</div>
-        <div className="mt-2 flex justify-center">
-          <ChanceWheel
-            percent={percent}
-            chanceRange={chanceRange}
-            color={color}
-            arrowAngle={arrowAngle}
-            moving
-            large
-          />
-        </div>
-        <div className="mt-1 flex items-center justify-center gap-1.5 text-[9px] text-muted">
-          <Sparkles size={11} style={{ color }} />
-          {items.length} доменов · {percent}% шанс
-        </div>
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.07]">
-          <motion.div
-            initial={{ x: '-100%' }}
-            animate={{ x: '110%' }}
-            transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
-            className="h-full w-1/2 rounded-full bg-gradient-to-r from-transparent via-accent-soft to-transparent"
-          />
-        </div>
-      </motion.div>
-    </motion.div>
   );
 }
 

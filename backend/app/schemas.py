@@ -24,6 +24,8 @@ class UserOut(BaseModel):
     avatar_url: str | None
     balance: int
     total_spins: int
+    is_admin: bool
+    is_banned: bool
     created_at: datetime
 
 
@@ -146,6 +148,17 @@ class UpgradeIn(BaseModel):
     chance: float | None = Field(default=None, ge=0, le=100)
 
 
+class UpgradePreviewIn(BaseModel):
+    domain_ids: list[int] = Field(min_length=1, max_length=50)
+    chance_sector: Literal[10, 25, 50, 75]
+
+
+class UpgradePreviewOut(BaseModel):
+    target_value: int
+    target_rarity: RarityLiteral
+    domain: DomainOut | None
+
+
 class UpgradeOut(BaseModel):
     id: int
     success: bool
@@ -205,6 +218,54 @@ class DailyBonusOut(BaseModel):
 
 class EarnOut(BaseModel):
     earned: int
+    balance: int
+
+
+class AdminUserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    telegram_id: int
+    username: str | None
+    display_name: str
+    avatar_url: str | None
+    balance: int
+    total_spins: int
+    is_admin: bool
+    is_banned: bool
+    ban_reason: str | None
+    created_at: datetime
+
+
+class AdminUsersOut(BaseModel):
+    users: list[AdminUserOut]
+    total: int
+
+
+class AdminOverviewOut(BaseModel):
+    users: int
+    banned: int
+    admins: int
+    total_balance: int
+    total_spins: int
+    inventory_count: int
+
+
+class AdminBalanceIn(BaseModel):
+    amount: int = Field(ge=-10_000_000_000, le=10_000_000_000)
+
+
+class AdminBanIn(BaseModel):
+    banned: bool
+    reason: str | None = Field(default=None, max_length=256)
+
+
+class AdminGrantIn(BaseModel):
+    rarity: RarityLiteral | None = None
+
+
+class AdminGrantOut(BaseModel):
+    domain: DomainOut
     balance: int
 
 

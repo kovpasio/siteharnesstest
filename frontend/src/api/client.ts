@@ -1,4 +1,8 @@
 import type {
+  AdminGrantResult,
+  AdminOverview,
+  AdminUser,
+  AdminUsersResponse,
   AuthResponse,
   AutosellSettings,
   BulkSellResult,
@@ -14,6 +18,7 @@ import type {
   RollType,
   SellResult,
   SpinResult,
+  UpgradePreview,
   UpgradeResult,
 } from '@/types';
 
@@ -171,12 +176,41 @@ export const api = {
 
   earnHold: () => request<EarnResult>('/earnings/hold', { method: 'POST' }),
 
+  adminOverview: () => request<AdminOverview>('/admin/overview'),
+
+  adminUsers: (query = '') =>
+    request<AdminUsersResponse>(`/admin/users?query=${encodeURIComponent(query)}&limit=50`),
+
+  adminBalance: (userId: number, amount: number) =>
+    request<AdminUser>(`/admin/users/${userId}/balance`, {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    }),
+
+  adminBan: (userId: number, banned: boolean, reason?: string) =>
+    request<AdminUser>(`/admin/users/${userId}/ban`, {
+      method: 'POST',
+      body: JSON.stringify({ banned, reason: reason ?? null }),
+    }),
+
+  adminGrantDomain: (userId: number, rarity?: Rarity) =>
+    request<AdminGrantResult>(`/admin/users/${userId}/grant-domain`, {
+      method: 'POST',
+      body: JSON.stringify({ rarity: rarity ?? null }),
+    }),
+
   autosell: () => request<AutosellSettings>('/settings/autosell'),
 
   updateAutosell: (settings: AutosellSettings) =>
     request<AutosellSettings>('/settings/autosell', {
       method: 'PUT',
       body: JSON.stringify(settings),
+    }),
+
+  upgradePreview: (domainIds: number[], chanceSector: 10 | 25 | 50 | 75) =>
+    request<UpgradePreview>('/upgrade/preview', {
+      method: 'POST',
+      body: JSON.stringify({ domain_ids: domainIds, chance_sector: chanceSector }),
     }),
 
   upgrade: (domainIds: number[], chanceSector: 10 | 25 | 50 | 75, chance: number) =>

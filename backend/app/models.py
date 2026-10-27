@@ -56,6 +56,10 @@ class User(Base):
     balance: Mapped[int] = mapped_column(BigInteger, nullable=False, default=settings.start_balance)
     pity_counter: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_spins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    is_banned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    ban_reason: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    banned_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     last_daily_bonus: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), nullable=False, server_default=func.now()

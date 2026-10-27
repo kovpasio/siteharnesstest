@@ -50,8 +50,8 @@ def test_price_formula_and_rarity_thresholds():
 def test_weight_applies_rarity_luck():
     assert weight_for(10, "common") > weight_for(1_000_000, "mythic")
     assert weight_for(1_000_000, "mythic") == pytest.approx(5.5 / (1_000_000**0.6), rel=1e-9)
-    assert weight_for(100, "rare") > weight_for(100, "common") * 3
-    assert weight_for(1, "common") == 1.0
+    assert weight_for(100, "rare") > weight_for(100, "common")
+    assert weight_for(1, "common") == 2.5
 
 
 def test_upgrade_sectors_have_negative_ev():
@@ -76,6 +76,10 @@ def test_full_generator_has_100k_unique_domains_and_examples():
         counts[domain.rarity] += 1
         assert rarity_for_price(domain.price) == domain.rarity
     assert all(count > 0 for count in counts.values())
+
+    common = [domain for domain in domains if domain.rarity == "common"]
+    assert sum(domain.price for domain in common) / len(common) > 35
+    assert sum(1 for domain in common if domain.price > 80) / len(common) > 0.1
     for (name, zone), price in PREMIUM_PRICES.items():
         found = next(
             (domain for domain in domains if domain.name == name and domain.zone == zone),

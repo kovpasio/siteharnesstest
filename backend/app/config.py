@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://roulette:roulette@localhost:5432/roulette"
     redis_url: str = "redis://localhost:6379/0"
 
+    admin_usernames: str = "anxiohalcy"
     jwt_secret: str = "local-dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
@@ -34,6 +35,14 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def admin_usernames_list(self) -> set[str]:
+        return {
+            name.strip().lower().lstrip("@")
+            for name in self.admin_usernames.split(",")
+            if name.strip()
+        }
 
     @property
     def bot_enabled(self) -> bool:

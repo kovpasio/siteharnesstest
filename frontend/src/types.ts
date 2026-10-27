@@ -10,6 +10,8 @@ export interface User {
   avatar_url: string | null;
   balance: number;
   total_spins: number;
+  is_admin: boolean;
+  is_banned: boolean;
   created_at: string;
 }
 
@@ -42,6 +44,39 @@ export interface MeResponse {
 
 export interface EarnResult {
   earned: number;
+  balance: number;
+}
+
+export interface AdminUser {
+  id: number;
+  telegram_id: number;
+  username: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  balance: number;
+  total_spins: number;
+  is_admin: boolean;
+  is_banned: boolean;
+  ban_reason: string | null;
+  created_at: string;
+}
+
+export interface AdminOverview {
+  users: number;
+  banned: number;
+  admins: number;
+  total_balance: number;
+  total_spins: number;
+  inventory_count: number;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+  total: number;
+}
+
+export interface AdminGrantResult {
+  domain: Domain;
   balance: number;
 }
 
@@ -108,6 +143,12 @@ export interface AutosellSettings {
   autosell_legendary: boolean;
   autosell_mythic: boolean;
   autosell_below_price: number | null;
+}
+
+export interface UpgradePreview {
+  target_value: number;
+  target_rarity: Rarity;
+  domain: Domain | null;
 }
 
 export interface UpgradeResult {

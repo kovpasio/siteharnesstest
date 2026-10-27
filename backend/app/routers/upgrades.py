@@ -12,7 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.economy import UPGRADE_SECTORS, rarity_for_price, weight_for
 from app.models import Domain, Inventory, Upgrade, User
-from app.schemas import DomainOut, UpgradeIn, UpgradeOut
+from app.schemas import (
+    DomainOut,
+    UpgradeIn,
+    UpgradeOut,
+    UpgradePreviewIn,
+    UpgradePreviewOut,
+)
 from app.security import get_current_user
 
 router = APIRouter(prefix="/upgrade", tags=["upgrade"])
@@ -21,6 +27,57 @@ rng = random.SystemRandom()
 
 def _new_mythic_name(zone: str) -> str:
     return f"vault-{secrets.token_hex(5)}"
+
+
+@router.post("/preview", response_model=UpgradePreviewOut)
+async def preview_upgrade(
+    payload: UpgradePreviewIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UpgradePreviewOut:
+    ids = sorted(set(payload.domain_ids))
+    if not ids:
+        raise HTTPException(status_code=422, detail="Выберите хотя бы один домен")
+    items = (
+        await db.scalars(
+            select(Inventory).where(
+                Inventory.user_id == user.id,
+                Inventory.id.in_(ids),
+                Inventory.sold_at.is_(None),
+            )
+        )
+    ).all()
+    if len(items) != len(ids):
+        raise HTTPException(status_code=409, detail="Домены недоступны")
+
+    spent = sum(int(item.domain.price) for item in items)
+    target_value = max(1, int(round(spent * UPGRADE_SECTORS[payload.chance_sector])))
+    target_rarity = rarity_for_price(target_value)
+    max_row = (
+        await db.execute(
+            select(func.max(Domain.price)).where(
+                Domain.is_available.is_(True), Domain.rarity == target_rarity
+            )
+        )
+    ).scalar_one_or_none()
+    if target_rarity == "mythic" and target_value > int(max_row or 0):
+        return UpgradePreviewOut(
+            target_value=target_value,
+            target_rarity=target_rarity,
+            domain=None,
+        )
+
+    domain = await db.scalar(
+        select(Domain)
+        .where(Domain.is_available.is_(True), Domain.rarity == target_rarity)
+        .order_by(func.abs(Domain.price - target_value))
+        .limit(1)
+    )
+    return UpgradePreviewOut(
+        target_value=target_value,
+        target_rarity=target_rarity,
+        domain=DomainOut.model_validate(domain) if domain else None,
+    )
 
 
 @router.post("", response_model=UpgradeOut)

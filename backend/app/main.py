@@ -12,6 +12,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import SessionLocal, close_db, init_db
 from app.routers import (
+    admin,
     auth,
     domains,
     drops,
@@ -75,6 +76,7 @@ app.add_middleware(
 
 api_prefix = "/api"
 app.include_router(auth.router, prefix=api_prefix)
+app.include_router(admin.router, prefix=api_prefix)
 app.include_router(users.router, prefix=api_prefix)
 app.include_router(domains.router, prefix=api_prefix)
 app.include_router(spins.router, prefix=api_prefix)

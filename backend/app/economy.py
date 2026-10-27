@@ -105,7 +105,7 @@ SPIN_TYPES: dict[str, SpinType] = {
 # Rarity luck multipliers are tuned to make Rare+ noticeably more common
 # while keeping the expected payout of every ticket below its price.
 RARITY_WEIGHT_LUCK: dict[Rarity, float] = {
-    "common": 1.0,
+    "common": 2.5,
     "rare": 3.2,
     "epic": 7.0,
     "legendary": 6.5,

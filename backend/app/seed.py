@@ -19,18 +19,14 @@ async def seed_domains(
     session: AsyncSession,
     target: int = MAX_DOMAIN_COUNT,
 ) -> None:
-    """Seed the large catalog once, or top up an older volume."""
+    """Refresh the rounded catalog and keep old inventory rows intact."""
     available = int(
         await session.scalar(
             select(func.count()).select_from(Domain).where(Domain.is_available.is_(True))
         )
         or 0
     )
-    if available >= target:
-        logger.info("Domain catalog ready (%s available domains)", available)
-        return
-
-    logger.info("Generating %s virtual domains (current available: %s)", target, available)
+    logger.info("Refreshing %s virtual domains (current available: %s)", target, available)
     domains = generate_domains(target)
 
     # Old catalogs are kept for historical inventory rows but removed from
