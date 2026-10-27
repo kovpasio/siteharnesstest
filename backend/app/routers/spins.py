@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.economy import SPIN_TYPES
-from app.models import Inventory, Spin, User
-from app.schemas import DomainOut, SpinIn, SpinOut
+from app.models import Domain, Inventory, Spin, User
+from app.schemas import DomainOut, KeepSpinOut, SpinIn, SpinOut
 from app.security import get_current_user
 from app.services.autosell import get_or_create_settings, should_autosell
 from app.services.realtime import publish_drop
@@ -126,14 +126,15 @@ async def spin(
         db.add(spin_row)
         await db.flush()
 
+        inventory_row: Inventory | None = None
         if not auto_sold:
-            db.add(
-                Inventory(
-                    user_id=locked_user.id,
-                    domain_id=domain.id,
-                    acquired_at=now,
-                )
+            inventory_row = Inventory(
+                user_id=locked_user.id,
+                domain_id=domain.id,
+                acquired_at=now,
             )
+            db.add(inventory_row)
+            await db.flush()
 
         await db.commit()
         await db.refresh(spin_row)
@@ -150,6 +151,7 @@ async def spin(
             balance=locked_user.balance,
             auto_sold=auto_sold,
             auto_sold_price=sale_price if auto_sold else None,
+            inventory_id=inventory_row.id if inventory_row is not None else None,
             created_at=spin_row.created_at,
         )
     except HTTPException:
@@ -161,3 +163,66 @@ async def spin(
         await _release_cooldown(user.id)
         logger.exception("Spin failed for user %s", user.id)
         raise
+
+
+@router.post("/{spin_id}/keep", response_model=KeepSpinOut)
+async def keep_auto_sold_spin(
+    spin_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> KeepSpinOut:
+    locked_user = await db.scalar(
+        select(User)
+        .where(User.id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if locked_user is None:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+
+    spin_row = await db.scalar(
+        select(Spin)
+        .where(Spin.id == spin_id, Spin.user_id == user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if spin_row is None:
+        raise HTTPException(status_code=404, detail="Спин не найден")
+    if not spin_row.auto_sold:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Домен уже оставлен или не был продан автоматически",
+        )
+
+    price = int(spin_row.auto_sold_price or spin_row.price)
+    if locked_user.balance < price:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Монеты уже потрачены — оставить домен нельзя",
+        )
+
+    domain = await db.get(Domain, spin_row.domain_id)
+    if domain is None:
+        raise HTTPException(status_code=404, detail="Домен не найден")
+    spin_row_id = spin_row.id
+
+    locked_user.balance -= price
+    item = Inventory(
+        user_id=locked_user.id,
+        domain_id=domain.id,
+        acquired_at=datetime.now(timezone.utc),
+    )
+    db.add(item)
+    await db.flush()
+    item_id = item.id
+    spin_row.auto_sold = False
+    spin_row.auto_sold_price = None
+    await db.commit()
+    await db.refresh(locked_user)
+
+    return KeepSpinOut(
+        spin_id=spin_row_id,
+        domain=DomainOut.model_validate(domain),
+        inventory_id=item_id,
+        balance=locked_user.balance,
+    )

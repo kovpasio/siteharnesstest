@@ -93,7 +93,15 @@ class SpinOut(BaseModel):
     balance: int
     auto_sold: bool
     auto_sold_price: int | None
+    inventory_id: int | None = None
     created_at: datetime
+
+
+class KeepSpinOut(BaseModel):
+    spin_id: int
+    domain: DomainOut
+    inventory_id: int
+    balance: int
 
 
 class InventoryItemOut(BaseModel):

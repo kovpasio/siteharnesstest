@@ -125,11 +125,6 @@ MAX_DOMAIN_COUNT = 100_500
 PREMIUM_PRICES: dict[tuple[str, str], int] = {
     ("microsoft", ".com"): 1_000_000,
     ("google", ".com"): 1_100_000,
-    ("neo", ".com"): 250_000,
-    ("ai", ".io"): 80_000,
-    ("vector", ".ru"): 5_000,
-    ("pixelhub", ".io"): 1_200,
-    ("lg-shd9uga", ".xyz"): 10,
 }
 
 

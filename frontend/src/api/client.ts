@@ -11,6 +11,7 @@ import type {
   DropsResponse,
   EarnResult,
   InventoryItem,
+  KeepResult,
   LeaderboardResponse,
   MeResponse,
   Meta,
@@ -146,6 +147,11 @@ export const api = {
     request<SpinResult>('/spin', {
       method: 'POST',
       body: JSON.stringify({ roll_type: rollType }),
+    }),
+
+  keepSpin: (spinId: number) =>
+    request<KeepResult>(`/spin/${spinId}/keep`, {
+      method: 'POST',
     }),
 
   inventory: (params?: { zone?: string; rarity?: Rarity }) => {

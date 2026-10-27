@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.domain_generator import generate_domains, load_words
+from app.domain_generator import generate_domains, load_real_domains, load_words
 from app.economy import (
     MAX_DOMAIN_COUNT,
     PREMIUM_PRICES,
@@ -66,10 +66,21 @@ def test_all_roulette_costs_and_rarity_pools():
     assert SPIN_TYPES["epic_plus"]["rarities"] == ("legendary", "mythic")
 
 
+def test_real_domain_catalog_has_requested_sizes_and_brands():
+    names = load_real_domains()
+    assert len(names) == MAX_DOMAIN_COUNT
+    assert len(set(names)) == MAX_DOMAIN_COUNT
+    assert "google.com" in names
+    assert "microsoft.com" in names
+    assert all(name.count(".") == 1 for name in names)
+
+
 def test_full_generator_has_100k_unique_domains_and_examples():
     domains = generate_domains(MAX_DOMAIN_COUNT)
+    real_names = set(load_real_domains()[:MAX_DOMAIN_COUNT])
     assert len(domains) == MAX_DOMAIN_COUNT
     assert len({(domain.name, domain.zone) for domain in domains}) == MAX_DOMAIN_COUNT
+    assert all(f"{domain.name}{domain.zone}" in real_names for domain in domains)
     assert {domain.zone for domain in domains} == {".ru", ".com", ".io", ".xyz"}
     counts = {rarity: 0 for rarity in RARITY_ORDER}
     for domain in domains:

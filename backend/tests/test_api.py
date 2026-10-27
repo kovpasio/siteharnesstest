@@ -183,6 +183,7 @@ async def test_full_game_flow(test_context, monkeypatch):
     first_data = first.json()
     assert first_data["balance"] == 4900
     assert first_data["auto_sold"] is False
+    assert first_data["inventory_id"] is not None
     assert "server_seed" not in first_data
     limited = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
     assert limited.status_code == 429
@@ -379,6 +380,46 @@ async def test_admin_cannot_ban_self(test_context):
         json={"banned": True},
     )
     assert response.status_code == 422
+
+
+async def test_keep_auto_sold_spin(test_context):
+    client, _Session, fake = test_context
+    payload, headers = await _auth(client, 900010, "keeper")
+    user_id = payload["user"]["id"]
+
+    response = await client.put(
+        "/api/settings/autosell",
+        headers=headers,
+        json={
+            "autosell_common": True,
+            "autosell_rare": True,
+            "autosell_epic": True,
+            "autosell_legendary": True,
+            "autosell_mythic": True,
+            "autosell_below_price": None,
+        },
+    )
+    assert response.status_code == 200
+
+    spin = await client.post("/api/spin", headers=headers, json={"roll_type": "normal"})
+    assert spin.status_code == 200, spin.text
+    data = spin.json()
+    assert data["auto_sold"] is True
+    assert data["inventory_id"] is None
+    before_keep = data["balance"]
+
+    kept = await client.post(f"/api/spin/{data['id']}/keep", headers=headers)
+    assert kept.status_code == 200, kept.text
+    kept_data = kept.json()
+    assert kept_data["inventory_id"] is not None
+    assert kept_data["balance"] == before_keep - data["auto_sold_price"]
+
+    inventory = await client.get("/api/inventory", headers=headers)
+    assert len(inventory.json()) == 1
+    assert inventory.json()[0]["id"] == kept_data["inventory_id"]
+
+    repeated = await client.post(f"/api/spin/{data['id']}/keep", headers=headers)
+    assert repeated.status_code == 409
 
 
 async def test_mythic_roulette_is_gone(test_context):

@@ -111,7 +111,15 @@ export interface SpinResult {
   balance: number;
   auto_sold: boolean;
   auto_sold_price: number | null;
+  inventory_id: number | null;
   created_at: string;
+}
+
+export interface KeepResult {
+  spin_id: number;
+  domain: Domain;
+  inventory_id: number;
+  balance: number;
 }
 
 export interface InventoryItem {

@@ -1,7 +1,8 @@
-"""Deterministic generator for the 100 000+ virtual domain catalog.
+"""Deterministic catalog of real registered domain names.
 
-The catalog is generated once on first start and then stored in PostgreSQL.
-Every name is unique per zone and has an individually calculated price.
+The name list is a static snapshot from the public Majestic Million ranking.
+Names are real registered domains; prices and rarity are game values and do
+not imply ownership or transfer rights.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from app.economy import (
 )
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
+REAL_DOMAINS_PATH = DATA_DIR / "real_domains.txt"
 SEED = 20261026
 
 TRANSLIT = {
@@ -229,8 +231,73 @@ class DomainGenerator:
         return self.domains[:target]
 
 
+@lru_cache(maxsize=1)
+def load_real_domains() -> tuple[str, ...]:
+    if not REAL_DOMAINS_PATH.exists():
+        raise RuntimeError(f"Real domain list is missing: {REAL_DOMAINS_PATH}")
+    names = tuple(
+        line.strip().lower()
+        for line in REAL_DOMAINS_PATH.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+    if len(names) < MAX_DOMAIN_COUNT:
+        raise RuntimeError(
+            f"Real domain list has {len(names)} names, expected {MAX_DOMAIN_COUNT}"
+        )
+    return names
+
+
+def _split_zone(domain: str) -> tuple[str, str]:
+    for zone in ZONES:
+        if domain.endswith(zone) and len(domain) > len(zone):
+            name = domain[: -len(zone)]
+            if "." not in name:
+                return name, zone
+    raise ValueError(f"unsupported real domain: {domain}")
+
+
+@lru_cache(maxsize=1)
+def _economy_slots() -> tuple[GeneratedDomain, ...]:
+    """Reuse the tuned game economy while replacing all names with real ones.
+
+    The old generator still supplies the price/rarity ladder: Common 1..99,
+    Rare 100..999 and so on. Real names are shuffled independently and mapped
+    onto those slots. This keeps the roulette economy roughly unchanged.
+    """
+    return tuple(DomainGenerator(seed=SEED + 1).generate(MAX_DOMAIN_COUNT))
+
+
 def generate_domains(target: int = MAX_DOMAIN_COUNT) -> list[GeneratedDomain]:
-    return DomainGenerator().generate(target)
+    """Build the catalog from real registered names and tuned price slots."""
+    target = max(target, 1)
+    names = list(load_real_domains()[:target])
+    random.Random(SEED + 2).shuffle(names)
+    slots = sorted(_economy_slots()[:target], key=lambda item: item.price)
+    domains: list[GeneratedDomain] = []
+    for full_name, slot in zip(names, slots):
+        try:
+            name, zone = _split_zone(full_name)
+        except ValueError:
+            continue
+        explicit = PREMIUM_PRICES.get((name, zone))
+        price = explicit if explicit is not None else int(slot.price)
+        rarity = rarity_for_price(price)
+        domains.append(
+            GeneratedDomain(
+                name=name,
+                zone=zone,
+                price=price,
+                rarity=rarity,
+                weight=round(weight_for(price, rarity), 8),
+            )
+        )
+        if len(domains) >= target:
+            break
+    if len(domains) < target:
+        raise RuntimeError(
+            f"Only {len(domains)} real domains could be parsed, expected {target}"
+        )
+    return domains
 
 
 def read_word_counts() -> tuple[int, int]:

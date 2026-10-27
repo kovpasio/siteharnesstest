@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-import secrets
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -10,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.economy import UPGRADE_SECTORS, rarity_for_price, weight_for
+from app.economy import UPGRADE_SECTORS, rarity_for_price
 from app.models import Domain, Inventory, Upgrade, User
 from app.schemas import (
     DomainOut,
@@ -24,9 +23,6 @@ from app.security import get_current_user
 router = APIRouter(prefix="/upgrade", tags=["upgrade"])
 rng = random.SystemRandom()
 
-
-def _new_mythic_name(zone: str) -> str:
-    return f"vault-{secrets.token_hex(5)}"
 
 
 @router.post("/preview", response_model=UpgradePreviewOut)
@@ -61,18 +57,19 @@ async def preview_upgrade(
         )
     ).scalar_one_or_none()
     if target_rarity == "mythic" and target_value > int(max_row or 0):
-        return UpgradePreviewOut(
-            target_value=target_value,
-            target_rarity=target_rarity,
-            domain=None,
+        domain = await db.scalar(
+            select(Domain)
+            .where(Domain.is_available.is_(True), Domain.rarity == "mythic")
+            .order_by(Domain.price.desc())
+            .limit(1)
         )
-
-    domain = await db.scalar(
-        select(Domain)
-        .where(Domain.is_available.is_(True), Domain.rarity == target_rarity)
-        .order_by(func.abs(Domain.price - target_value))
-        .limit(1)
-    )
+    else:
+        domain = await db.scalar(
+            select(Domain)
+            .where(Domain.is_available.is_(True), Domain.rarity == target_rarity)
+            .order_by(func.abs(Domain.price - target_value))
+            .limit(1)
+        )
     return UpgradePreviewOut(
         target_value=target_value,
         target_rarity=target_rarity,
@@ -150,26 +147,12 @@ async def upgrade_domains(
         max_price = int(max_row or 0)
 
         if target_rarity == "mythic" and target_value > max_price:
-            zone = rng.choice((".com", ".io", ".ru", ".xyz"))
-            for _ in range(20):
-                name = _new_mythic_name(zone)
-                exists = await db.scalar(
-                    select(Domain.id).where(Domain.name == name, Domain.zone == zone)
-                )
-                if exists is None:
-                    won_domain = Domain(
-                        name=name,
-                        zone=zone,
-                        price=target_value,
-                        rarity="mythic",
-                        weight=round(weight_for(target_value, "mythic"), 8),
-                        is_available=True,
-                    )
-                    db.add(won_domain)
-                    await db.flush()
-                    break
-            if won_domain is None:
-                raise HTTPException(status_code=503, detail="Не удалось создать домен")
+            won_domain = await db.scalar(
+                select(Domain)
+                .where(Domain.is_available.is_(True), Domain.rarity == "mythic")
+                .order_by(Domain.price.desc())
+                .limit(1)
+            )
         else:
             won_domain = await db.scalar(
                 select(Domain)
@@ -181,18 +164,14 @@ async def upgrade_domains(
                 .limit(1)
             )
             if won_domain is None:
-                target_rarity = "mythic"
-                zone = rng.choice((".com", ".io", ".ru", ".xyz"))
-                won_domain = Domain(
-                    name=_new_mythic_name(zone),
-                    zone=zone,
-                    price=target_value,
-                    rarity="mythic",
-                    weight=round(weight_for(target_value, "mythic"), 8),
-                    is_available=True,
+                won_domain = await db.scalar(
+                    select(Domain)
+                    .where(Domain.is_available.is_(True), Domain.rarity == "mythic")
+                    .order_by(Domain.price.desc())
+                    .limit(1)
                 )
-                db.add(won_domain)
-                await db.flush()
+        if won_domain is None:
+            raise HTTPException(status_code=503, detail="Подходящих реальных доменов нет")
 
         db.add(
             Inventory(

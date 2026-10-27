@@ -4,11 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   CheckCircle2,
+  Coins,
   Dices,
+  Loader2,
   Package,
   RotateCw,
   Settings2,
   Sparkles,
+  Undo2,
 } from 'lucide-react';
 import { api } from '@/api/client';
 import { useAuth } from '@/context/AuthContext';
@@ -44,7 +47,7 @@ function fillRibbon(source: Domain[], count = RIBBON_LENGTH): Domain[] {
 export function RoulettePage() {
   const { me, refresh, applyBalance, incrementBalance } = useAuth();
   const { toast } = useToast();
-  const { playTick, playReveal } = useSound();
+  const { playTick, playReveal, playCoin } = useSound();
 
   const [meta, setMeta] = useState<Meta | null>(null);
   const [activeType, setActiveType] = useState<RollType>('normal');
@@ -54,6 +57,9 @@ export function RoulettePage() {
   const [animateTarget, setAnimateTarget] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<SpinResult | null>(null);
+  const [quickSoldPrice, setQuickSoldPrice] = useState<number | null>(null);
+  const [selling, setSelling] = useState(false);
+  const [keeping, setKeeping] = useState(false);
   const [mythicDrop, setMythicDrop] = useState<Domain | null>(null);
   const closeMythicDrop = useCallback(() => setMythicDrop(null), []);
   const [revealed, setRevealed] = useState(false);
@@ -159,6 +165,53 @@ export function RoulettePage() {
     [applyBalance, clearFinishTimer, playReveal, refresh, toast],
   );
 
+  async function keepAutoSold() {
+    if (!result || keeping || !result.auto_sold) return;
+    setKeeping(true);
+    hapticImpact('light');
+    try {
+      const kept = await api.keepSpin(result.id);
+      applyBalance(kept.balance);
+      setResult((current) =>
+        current
+          ? {
+              ...current,
+              auto_sold: false,
+              auto_sold_price: null,
+              inventory_id: kept.inventory_id,
+            }
+          : current,
+      );
+      setQuickSoldPrice(null);
+      hapticNotify('success');
+      toast('Домен оставлен в инвентаре', 'success');
+      void refresh().catch(() => undefined);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Не удалось оставить домен', 'error');
+    } finally {
+      setKeeping(false);
+    }
+  }
+
+  async function quickSellResult() {
+    if (!result || selling || !result.inventory_id || result.auto_sold) return;
+    setSelling(true);
+    hapticImpact('light');
+    try {
+      const sold = await api.sell(result.inventory_id);
+      applyBalance(sold.balance);
+      setQuickSoldPrice(sold.sold_price);
+      playCoin();
+      hapticNotify('success');
+      toast(`Продано: +${formatNumber(sold.sold_price)} D`, 'success');
+      void refresh().catch(() => undefined);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Не удалось продать домен', 'error');
+    } finally {
+      setSelling(false);
+    }
+  }
+
   async function spin() {
     if (!activeRoll || spinning || lock.current) return;
     if ((me?.user.balance ?? 0) < activeRoll.cost) {
@@ -171,14 +224,25 @@ export function RoulettePage() {
     setSpinning(true);
     setRevealed(false);
     setResult(null);
+    setQuickSoldPrice(null);
+    setSelling(false);
+    setKeeping(false);
     setMythicDrop(null);
     hapticImpact('light');
 
     try {
-      const response = await api.spin(activeType);
+      const [response, freshFeed] = await Promise.all([
+        api.spin(activeType),
+        api.feed(activeType, 60).catch(() => [] as Domain[]),
+      ]);
 
-      const pool = feed.length ? feed : [response.domain];
-      const nextRibbon = fillRibbon(pool);
+      if (freshFeed.length) {
+        setFeed(freshFeed);
+      }
+      const pool = (freshFeed.length ? freshFeed : feed.length ? feed : [response.domain]).filter(
+        (domain) => domain.id !== response.domain.id,
+      );
+      const nextRibbon = fillRibbon(pool.length ? pool : [response.domain]);
       nextRibbon[TARGET_INDEX] = response.domain;
 
       const width = viewportRef.current?.offsetWidth ?? 360;
@@ -378,6 +442,10 @@ export function RoulettePage() {
                 <span className="flex items-center gap-1 rounded bg-accent/10 px-1.5 py-0.5 text-[8px] font-semibold text-accent-soft">
                   <CheckCircle2 size={10} /> автопродано
                 </span>
+              ) : quickSoldPrice !== null ? (
+                <span className="flex items-center gap-1 rounded bg-gold/10 px-1.5 py-0.5 text-[8px] font-semibold text-gold">
+                  <Coins size={10} /> продано
+                </span>
               ) : (
                 <span className="text-[8px] text-muted/60">#{result.id}</span>
               )}
@@ -392,10 +460,15 @@ export function RoulettePage() {
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-[8px] uppercase tracking-[0.1em] text-muted/60">
-                  {result.auto_sold ? 'получено' : 'цена'}
+                  {result.auto_sold || quickSoldPrice !== null ? 'получено' : 'цена'}
                 </div>
                 <div className="font-display text-lg font-semibold text-paper">
-                  {formatNumber(result.auto_sold ? (result.auto_sold_price ?? result.price) : result.price)} D
+                  {formatNumber(
+                    result.auto_sold
+                      ? (result.auto_sold_price ?? result.price)
+                      : (quickSoldPrice ?? result.price),
+                  )}{' '}
+                  D
                 </div>
               </div>
             </div>
@@ -405,18 +478,49 @@ export function RoulettePage() {
               <span>·</span>
               <span>{timeAgo(result.created_at)}</span>
               <span>·</span>
-              <span className={result.auto_sold ? 'text-accent-soft' : ''}>
-                {result.auto_sold ? 'баланс пополнен' : 'добавлен в инвентарь'}
+              <span
+                className={
+                  result.auto_sold || quickSoldPrice !== null ? 'text-accent-soft' : ''
+                }
+              >
+                {result.auto_sold
+                  ? 'баланс пополнен'
+                  : quickSoldPrice !== null
+                    ? 'продано, баланс пополнен'
+                    : 'добавлен в инвентарь'}
               </span>
             </div>
 
             <div className="mt-3.5 grid grid-cols-2 gap-2">
-              <Link
-                to="/inventory"
-                className="flex items-center justify-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2.5 text-[10px] font-medium text-muted transition hover:text-paper"
-              >
-                <Package size={13} /> Инвентарь
-              </Link>
+              {result.auto_sold ? (
+                <button
+                  type="button"
+                  onClick={() => void keepAutoSold()}
+                  disabled={keeping}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-teal/30 bg-teal/10 py-2.5 text-[10px] font-semibold text-teal transition hover:bg-teal/15 disabled:opacity-50"
+                >
+                  {keeping ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
+                  {keeping ? 'Оставляем…' : 'Оставить'}
+                </button>
+              ) : quickSoldPrice !== null ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/25 bg-gold/10 py-2.5 text-[10px] font-semibold text-gold opacity-80"
+                >
+                  <CheckCircle2 size={13} /> Продано
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void quickSellResult()}
+                  disabled={selling || !result.inventory_id}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-gold/30 bg-gold/10 py-2.5 text-[10px] font-semibold text-gold transition hover:bg-gold/15 disabled:opacity-50"
+                >
+                  {selling ? <Loader2 size={13} className="animate-spin" /> : <Coins size={13} />}
+                  {selling ? 'Продаём…' : `Продать за ${formatNumber(result.price)} D`}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void spin()}
@@ -426,6 +530,13 @@ export function RoulettePage() {
                 <RotateCw size={13} /> Ещё спин
               </button>
             </div>
+
+            <Link
+              to="/inventory"
+              className="mt-2.5 flex items-center justify-center gap-1 text-[9px] text-muted transition hover:text-paper"
+            >
+              <Package size={12} /> Открыть инвентарь <ArrowRight size={11} />
+            </Link>
           </motion.section>
         )}
       </AnimatePresence>
