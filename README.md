@@ -541,7 +541,7 @@ curl -X POST http://localhost:8000/api/spin \
 {
   "id": 42,
   "roll_type": "normal",
-  "domain": { "full_name": "google.com", "price": 1100000, "rarity": "mythic" },
+  "domain": { "full_name": "google.com", "price": 10000000, "rarity": "mythic" },
   "price": 5000,
   "balance": 4950,
   "auto_sold": false,
